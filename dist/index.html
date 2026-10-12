@@ -1,48 +1,328 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f7f5ee">
-  <meta name="description" content="A little photo booth for big memories. Private, playful, and entirely in your browser.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Little Moments — Your private photo booth</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="mobile.css">
-  <script src="app.js" defer></script>
-</head>
-<body data-mobile-panel="booth">
-<header class="header"><a class="brand" href="#"><span class="brand-icon">✳</span> little moments<span class="brand-dot">®</span></a><nav><button id="howBtn">How it works</button><button id="privacyBtn" class="privacy-link"><span>♧</span> Privacy, always</button></nav></header>
-<main>
-<section class="intro"><div class="eyebrow"><span></span> YOUR BROWSER. YOUR MEMORIES.</div><h1>Good times. <em>Little moments.</em><span class="scribble">✷</span></h1><p>A photo booth for your everyday kind of magic. Strike a pose, make it yours,<br class="desktop"> and keep it forever. All without leaving your device.</p></section>
-<div class="workspace">
-<section class="booth-card" id="boothPanel" aria-label="Photo booth">
-<div class="card-heading"><div><span class="tiny-icon">▣</span><h2>Your photo booth</h2></div><span class="local-pill"><i></i> 100% on your device</span></div>
-<div class="viewfinder" id="viewfinder">
-<div class="demo-art" id="demoArt" aria-hidden="true"><div class="sun"></div><div class="arch"></div><div class="vase"></div><div class="leaf leaf-one"></div><div class="leaf leaf-two"></div><div class="leaf leaf-three"></div><div class="floor"></div><div class="art-word">hello,<br><em>you.</em></div><div class="art-spark">✳</div></div>
-<video id="video" autoplay muted playsinline hidden></video><img id="uploadPreview" alt="Selected photo preview" hidden>
-<div class="view-top"><span class="camera-label" id="cameraLabel"><i></i> CAMERA OFF</span><button id="fullscreenBtn" class="icon-button" aria-label="Expand viewfinder">⛶</button></div>
-<div class="welcome" id="welcome"><span class="camera-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h5l2-3h4l2 3h5v13H3z"/><circle cx="12" cy="13" r="4"/></svg></span><h3>A little camera magic?</h3><p>Turn on your camera. The good times start here.</p><button class="primary" id="enableBtn">Enable camera <span>↗</span></button><span class="permission-note">Only you can see your camera.</span></div>
-<span class="countdown" id="countdown" hidden></span><span class="view-bottom">MAKE A FACE. MAKE A MEMORY.</span><span class="view-corner">✧</span><div id="flash"></div>
-</div>
-<div class="camera-controls"><button id="mirrorBtn" class="control active" aria-pressed="true"><span>↔</span> Mirror</button><button id="switchBtn" class="control"><span>⟳</span> Flip camera</button><label class="control timer-control"><span>◷</span><select id="timer" aria-label="Countdown timer"><option value="3">3s timer</option><option value="5">5s timer</option><option value="10">10s timer</option><option value="0">No timer</option></select></label><button class="control sound-button" id="soundBtn" aria-pressed="false" aria-label="Toggle shutter sound">♪</button></div>
-<div class="capture-row"><button class="capture" id="captureBtn"><span class="shutter">◉</span><span id="captureText">Take 4 photos</span><span class="key-hint">SPACE</span></button><button id="uploadBtn" class="upload-button" title="Use photos from your device" aria-label="Upload photos">↥</button><input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple hidden></div>
-<p class="booth-note" id="boothNote">Four poses. One lovely photo strip. <span>Make it a moment.</span></p>
-</section>
-<aside class="customize-card" id="customizePanel"><div class="card-heading"><div><span class="tiny-icon">✧</span><h2>Make it yours</h2></div><button id="resetBtn" class="text-button">Reset ↺</button></div>
-<div class="custom-body"><div class="section-label"><h3>Choose a layout</h3><span id="layoutCount">4 photos</span></div><div class="layout-options" id="layouts"><button class="layout active" data-layout="strip" aria-pressed="true"><span class="layout-icon strip-icon"><i></i><i></i><i></i><i></i></span>Classic strip</button><button class="layout" data-layout="grid" aria-pressed="false"><span class="layout-icon grid-icon"><i></i><i></i><i></i><i></i></span>The grid</button><button class="layout" data-layout="single" aria-pressed="false"><span class="layout-icon single-icon"><i></i></span>Solo shot</button></div>
-<div class="section-label"><h3>A little filter</h3><span>6 moods</span></div><div class="filters" id="filters"></div>
-<div class="section-label frame-label"><h3>Frame color</h3><span id="colorName">Vanilla</span></div><div class="swatches" id="swatches"></div>
-<div class="section-label"><h3>Say something</h3><span>Optional</span></div><div class="caption-field"><input id="caption" maxlength="50" placeholder="a little moment, a lot of joy" aria-label="Photo caption"><span>✎</span></div>
-<div class="section-label sticker-label"><h3>Add a little extra</h3><span>Pick a sticker</span></div><div class="stickers" id="stickers"><button data-sticker="" class="active" aria-label="No sticker">∅</button><button data-sticker="✳" aria-label="Flower sticker">✳</button><button data-sticker="♥" aria-label="Heart sticker">♥</button><button data-sticker="✦" aria-label="Star sticker">✦</button><button data-sticker="☺" aria-label="Smiley sticker">☺</button><button data-sticker="✿" aria-label="Blossom sticker">✿</button></div>
-<details class="fine-tune"><summary>Fine-tune your moment <span>＋</span></summary><label>Brightness <input id="brightness" type="range" min="60" max="140" value="100"></label><label>Contrast <input id="contrast" type="range" min="60" max="140" value="100"></label><label>Export format <select id="format"><option value="png">PNG · best quality</option><option value="jpeg">JPEG · smaller file</option></select></label></details>
-</div><div class="private-note"><span>♧</span><p><strong>Memories stay with you.</strong><br>No uploads. No tracking. No peeking.</p><span class="mini-star">✳</span></div></aside>
-</div>
-<section class="moments-card" id="momentsPanel"><div class="moments-header"><div><h2>Your little moments <span id="momentCount">0</span></h2><p>Made here. Kept here. Download the ones you love.</p></div><button class="text-button" id="clearBtn">Clear session <span>⌫</span></button></div><div id="gallery" class="gallery"><div class="empty-gallery"><span class="empty-icon">▧</span><p>Your next favorite memory goes here.</p><span>Take some photos to get started ✧</span></div></div></section>
-<section class="benefits"><div><span>♧</span><p><strong>Private by design</strong>Photos never leave your browser.</p></div><div><span>✧</span><p><strong>A little more you</strong>Filters, frames & happy little details.</p></div><div><span>↧</span><p><strong>Yours to keep</strong>Save a strip. Share it your way.</p></div></section>
-</main><footer><a class="brand small" href="#"><span>✳</span> little moments</a><p>Less scrolling. More smiling.</p><span>Made for the moments in between. ✧</span></footer>
-<nav class="mobile-nav" aria-label="Photo booth sections"><button data-panel="booth" aria-controls="boothPanel" aria-pressed="true"><span>▣</span>Camera</button><button data-panel="customize" aria-controls="customizePanel" aria-pressed="false"><span>✧</span>Customize</button><button data-panel="moments" aria-controls="momentsPanel" aria-pressed="false"><span>▧</span>My moments</button></nav>
-<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<dialog id="infoDialog"><button class="dialog-close" aria-label="Close dialog">×</button><div id="dialogContent"></div></dialog>
-<dialog id="resultDialog"><button class="dialog-close" aria-label="Close preview">×</button><h2>A moment worth keeping.</h2><p>Your current frame, caption, and sticker are included.</p><div class="result-preview"><canvas id="resultCanvas"></canvas></div><button id="downloadBtn" class="primary">Download your moment ↧</button></dialog>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f7f5ee" />
+    <meta
+      name="description"
+      content="A little photo booth for big memories. Private, playful, and entirely in your browser."
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Little Moments — Your private photo booth</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="mobile.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body data-mobile-panel="booth">
+    <header class="header">
+      <a class="brand" href="#"
+        ><span class="brand-icon">✳</span> little moments<span class="brand-dot"
+          >®</span
+        ></a
+      >
+      <nav>
+        <button id="howBtn">How it works</button
+        ><button id="privacyBtn" class="privacy-link">
+          <span>♧</span> Privacy, always
+        </button>
+      </nav>
+    </header>
+    <main>
+      <section class="intro">
+        <div class="eyebrow"><span></span> YOUR BROWSER. YOUR MEMORIES.</div>
+        <h1>
+          Good times. <em>Little moments.</em><span class="scribble">✷</span>
+        </h1>
+        <p>
+          A photo booth for your everyday kind of magic. Strike a pose, make it
+          yours,<br class="desktop" />
+          and keep it forever. All without leaving your device.
+        </p>
+      </section>
+      <div class="workspace">
+        <section class="booth-card" id="boothPanel" aria-label="Photo booth">
+          <div class="card-heading">
+            <div>
+              <span class="tiny-icon">▣</span>
+              <h2>Your photo booth</h2>
+            </div>
+            <span class="local-pill"><i></i> 100% on your device</span>
+          </div>
+          <div class="viewfinder" id="viewfinder">
+            <div class="demo-art" id="demoArt" aria-hidden="true">
+              <div class="sun"></div>
+              <div class="arch"></div>
+              <div class="vase"></div>
+              <div class="leaf leaf-one"></div>
+              <div class="leaf leaf-two"></div>
+              <div class="leaf leaf-three"></div>
+              <div class="floor"></div>
+              <div class="art-word">hello,<br /><em>you.</em></div>
+              <div class="art-spark">✳</div>
+            </div>
+            <video id="video" autoplay muted playsinline hidden></video
+            ><img id="uploadPreview" alt="Selected photo preview" hidden />
+            <div class="view-top">
+              <span class="camera-label" id="cameraLabel"
+                ><i></i> CAMERA OFF</span
+              ><button
+                id="fullscreenBtn"
+                class="icon-button"
+                aria-label="Expand viewfinder"
+              >
+                ⛶
+              </button>
+            </div>
+            <div class="welcome" id="welcome">
+              <span class="camera-circle"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                >
+                  <path d="M3 7h5l2-3h4l2 3h5v13H3z" />
+                  <circle cx="12" cy="13" r="4" /></svg
+              ></span>
+              <h3>A little camera magic?</h3>
+              <p>Turn on your camera. The good times start here.</p>
+              <button class="primary" id="enableBtn">
+                Enable camera <span>↗</span></button
+              ><span class="permission-note"
+                >Only you can see your camera.</span
+              >
+            </div>
+            <span class="countdown" id="countdown" hidden></span
+            ><span class="view-bottom">MAKE A FACE. MAKE A MEMORY.</span
+            ><span class="view-corner">✧</span>
+            <div id="flash"></div>
+          </div>
+          <div class="camera-controls">
+            <button id="mirrorBtn" class="control active" aria-pressed="true">
+              <span>↔</span> Mirror</button
+            ><button id="switchBtn" class="control">
+              <span>⟳</span> Flip camera</button
+            ><label class="control timer-control"
+              ><span>◷</span
+              ><select id="timer" aria-label="Countdown timer">
+                <option value="3">3s timer</option>
+                <option value="5">5s timer</option>
+                <option value="10">10s timer</option>
+                <option value="0">No timer</option>
+              </select></label
+            ><button
+              class="control sound-button"
+              id="soundBtn"
+              aria-pressed="false"
+              aria-label="Toggle shutter sound"
+            >
+              ♪
+            </button>
+          </div>
+          <div class="capture-row">
+            <button class="capture" id="captureBtn">
+              <span class="shutter">◉</span
+              ><span id="captureText">Take 4 photos</span
+              ><span class="key-hint">SPACE</span></button
+            ><button
+              id="uploadBtn"
+              class="upload-button"
+              title="Use photos from your device"
+              aria-label="Upload photos"
+            >
+              ↥</button
+            ><input
+              type="file"
+              id="fileInput"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              hidden
+            />
+          </div>
+          <p class="booth-note" id="boothNote">
+            Four poses. One lovely photo strip. <span>Make it a moment.</span>
+          </p>
+        </section>
+        <aside class="customize-card" id="customizePanel">
+          <div class="card-heading">
+            <div>
+              <span class="tiny-icon">✧</span>
+              <h2>Make it yours</h2>
+            </div>
+            <button id="resetBtn" class="text-button">Reset ↺</button>
+          </div>
+          <div class="custom-body">
+            <div class="section-label">
+              <h3>Choose a layout</h3>
+              <span id="layoutCount">4 photos</span>
+            </div>
+            <div class="layout-options" id="layouts">
+              <button
+                class="layout active"
+                data-layout="strip"
+                aria-pressed="true"
+              >
+                <span class="layout-icon strip-icon"
+                  ><i></i><i></i><i></i><i></i></span
+                >Classic strip</button
+              ><button class="layout" data-layout="grid" aria-pressed="false">
+                <span class="layout-icon grid-icon"
+                  ><i></i><i></i><i></i><i></i></span
+                >The grid</button
+              ><button class="layout" data-layout="single" aria-pressed="false">
+                <span class="layout-icon single-icon"><i></i></span>Solo shot
+              </button>
+            </div>
+            <div class="section-label">
+              <h3>A little filter</h3>
+              <span>6 moods</span>
+            </div>
+            <div class="filters" id="filters"></div>
+            <div class="section-label frame-label">
+              <h3>Frame color</h3>
+              <span id="colorName">Vanilla</span>
+            </div>
+            <div class="swatches" id="swatches"></div>
+            <div class="section-label">
+              <h3>Say something</h3>
+              <span>Optional</span>
+            </div>
+            <div class="caption-field">
+              <input
+                id="caption"
+                maxlength="50"
+                placeholder="a little moment, a lot of joy"
+                aria-label="Photo caption"
+              /><span>✎</span>
+            </div>
+            <div class="section-label sticker-label">
+              <h3>Add a little extra</h3>
+              <span>Pick a sticker</span>
+            </div>
+            <div class="stickers" id="stickers">
+              <button data-sticker="" class="active" aria-label="No sticker">
+                ∅</button
+              ><button data-sticker="✳" aria-label="Flower sticker">✳</button
+              ><button data-sticker="♥" aria-label="Heart sticker">♥</button
+              ><button data-sticker="✦" aria-label="Star sticker">✦</button
+              ><button data-sticker="☺" aria-label="Smiley sticker">☺</button
+              ><button data-sticker="✿" aria-label="Blossom sticker">✿</button>
+            </div>
+            <details class="fine-tune">
+              <summary>Fine-tune your moment <span>＋</span></summary>
+              <label
+                >Brightness
+                <input
+                  id="brightness"
+                  type="range"
+                  min="60"
+                  max="140"
+                  value="100" /></label
+              ><label
+                >Contrast
+                <input
+                  id="contrast"
+                  type="range"
+                  min="60"
+                  max="140"
+                  value="100" /></label
+              ><label
+                >Export format
+                <select id="format">
+                  <option value="png">PNG · best quality</option>
+                  <option value="jpeg">JPEG · smaller file</option>
+                </select></label
+              >
+            </details>
+          </div>
+          <div class="private-note">
+            <span>♧</span>
+            <p>
+              <strong>Memories stay with you.</strong><br />No uploads. No
+              tracking. No peeking.
+            </p>
+            <span class="mini-star">✳</span>
+          </div>
+        </aside>
+      </div>
+      <section class="moments-card" id="momentsPanel">
+        <div class="moments-header">
+          <div>
+            <h2>Your little moments <span id="momentCount">0</span></h2>
+            <p>Made here. Kept here. Download the ones you love.</p>
+          </div>
+          <button class="text-button" id="clearBtn">
+            Clear session <span>⌫</span>
+          </button>
+        </div>
+        <div id="gallery" class="gallery">
+          <div class="empty-gallery">
+            <span class="empty-icon">▧</span>
+            <p>Your next favorite memory goes here.</p>
+            <span>Take some photos to get started ✧</span>
+          </div>
+        </div>
+      </section>
+      <section class="benefits">
+        <div>
+          <span>♧</span>
+          <p>
+            <strong>Private by design</strong>Photos never leave your browser.
+          </p>
+        </div>
+        <div>
+          <span>✧</span>
+          <p>
+            <strong>A little more you</strong>Filters, frames & happy little
+            details.
+          </p>
+        </div>
+        <div>
+          <span>↧</span>
+          <p><strong>Yours to keep</strong>Save a strip. Share it your way.</p>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <a class="brand small" href="#"><span>✳</span> little moments</a>
+      <p>Less scrolling. More smiling.</p>
+      <span>Made for the moments in between. ✧</span>
+    </footer>
+    <nav class="mobile-nav" aria-label="Photo booth sections">
+      <button data-panel="booth" aria-controls="boothPanel" aria-pressed="true">
+        <span>▣</span>Camera</button
+      ><button
+        data-panel="customize"
+        aria-controls="customizePanel"
+        aria-pressed="false"
+      >
+        <span>✧</span>Customize</button
+      ><button
+        data-panel="moments"
+        aria-controls="momentsPanel"
+        aria-pressed="false"
+      >
+        <span>▧</span>My moments
+      </button>
+    </nav>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <dialog id="infoDialog">
+      <button class="dialog-close" aria-label="Close dialog">×</button>
+      <div id="dialogContent"></div>
+    </dialog>
+    <dialog id="resultDialog">
+      <button class="dialog-close" aria-label="Close preview">×</button>
+      <h2>A moment worth keeping.</h2>
+      <p>Your current frame, caption, and sticker are included.</p>
+      <div class="result-preview"><canvas id="resultCanvas"></canvas></div>
+      <button id="downloadBtn" class="primary">Download your moment ↧</button>
+    </dialog>
+  </body>
+</html>

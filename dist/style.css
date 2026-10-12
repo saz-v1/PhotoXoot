@@ -150,7 +150,9 @@ main {
 }
 
 h1 {
-  font: 48px/1.15 Georgia, serif;
+  font:
+    48px/1.15 Georgia,
+    serif;
   letter-spacing: -2px;
   margin: 15px 0;
 }
@@ -326,7 +328,9 @@ h2 {
   position: absolute;
   right: 16%;
   top: 35%;
-  font: 70px/0.8 Georgia, serif;
+  font:
+    70px/0.8 Georgia,
+    serif;
   color: #5b6353;
   transform: rotate(-8deg);
 }
@@ -345,7 +349,7 @@ h2 {
 }
 
 .demo-art:after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: #5d62421f;
@@ -424,7 +428,9 @@ h3 {
 }
 
 .welcome h3 {
-  font: 26px Georgia, serif;
+  font:
+    26px Georgia,
+    serif;
   letter-spacing: -0.5px;
   margin: 16px 0 8px;
 }
@@ -737,7 +743,10 @@ video.mirrored {
   height: 48px;
   border-radius: 6px;
   margin-bottom: 7px;
-  background: linear-gradient(20deg, #ac8064 28%, transparent 29%), radial-gradient(circle at 72% 30%, #dbae76 0 18%, transparent 19%), linear-gradient(90deg, #849277 35%, #c8c4a5 35%);
+  background:
+    linear-gradient(20deg, #ac8064 28%, transparent 29%),
+    radial-gradient(circle at 72% 30%, #dbae76 0 18%, transparent 19%),
+    linear-gradient(90deg, #849277 35%, #c8c4a5 35%);
   border: 2px solid transparent;
   position: relative;
 }
@@ -768,7 +777,7 @@ video.mirrored {
 }
 
 .swatch.active:after {
-  content: '';
+  content: "";
   position: absolute;
   inset: -4px;
   border: 1px solid #7e8b6c;
@@ -776,7 +785,7 @@ video.mirrored {
 }
 
 .swatch.active:before {
-  content: '✓';
+  content: "✓";
   font-size: 12px;
   color: var(--tick);
   position: absolute;
@@ -1399,4 +1408,3 @@ dialog li {
     animation: none !important;
   }
 }
-
