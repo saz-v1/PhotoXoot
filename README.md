@@ -30,13 +30,13 @@ little-moments/       # Existing workspace folder; the app is named PhotoXoot
     └── app.js         # State, UI events, camera lifecycle, rendering, and exports
 ```
 
-`index.html` loads `style.css` and then `mobile.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. There is one classic script, no module loader, and no bundler.
+`index.html` loads `style.css` and then `mobile.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. There is one classic script, no module loader, and no bundler. The interface uses system fonts, text-labeled primary actions, restrained borders, and native disclosure controls for optional tools.
 
 ### HTML responsibilities
 
-- **Header and introduction:** branding and help/privacy entry points.
-- **`boothPanel`:** welcome illustration, camera video, imported-image preview, countdown, flash, timer, capture, and camera controls. JavaScript adds the Stop camera button.
-- **`customizePanel`:** layout buttons, generated filter/frame options, caption, stickers, brightness, contrast, and export format.
+- **Header and introduction:** compact PhotoXoot branding, help/privacy actions, and a short capture/edit/save introduction.
+- **`boothPanel`:** neutral welcome screen, camera video, imported-image preview, countdown, flash, timer, capture, and camera controls. JavaScript adds the Stop camera button.
+- **`customizePanel`:** visible layout/filter/frame choices; optional caption/sticker and image-adjustment disclosure sections.
 - **`momentsPanel`:** session count, gallery, and clear-session action.
 - **Mobile navigation:** `data-panel` values select `booth`, `customize`, or `moments`; `aria-controls` identifies each panel.
 - **`infoDialog`:** help, privacy information, and clear-session confirmation.
@@ -47,18 +47,18 @@ Element IDs are the contract between HTML and `getElement()` in JavaScript. Rena
 
 ### CSS responsibilities
 
-`style.css` begins with color tokens in `:root`, then document defaults and component rules. Sections cover the workspace, viewfinder illustration, camera controls, customization, gallery, footer, feedback, and dialogs. Base breakpoints adjust larger and smaller layouts, and `prefers-reduced-motion` disables animations.
+`style.css` begins with color tokens in `:root`, then document defaults and component rules. Sections cover the workspace, neutral viewfinder, camera controls, customization, gallery, footer, feedback, and dialogs. Neutral surface/text tokens and one dark action color keep the interface visually quiet. Base breakpoints adjust larger and smaller layouts, and `prefers-reduced-motion` disables animations.
 
 `mobile.css` layers touch-friendly controls over those rules:
 
 | Condition                         | Behavior                                                                              |
 | --------------------------------- | ------------------------------------------------------------------------------------- |
-| Up to 900 px                      | Single-column workspace, larger touch targets, and larger input text.                 |
+| Up to 900 px                      | Tighter two-column workspace and compact controls.                                    |
 | Up to 650 px                      | One panel at a time, fixed bottom navigation, phone-sized dialogs, safe-area spacing. |
 | Up to 359 px                      | Narrower branding, swatches, and gallery actions.                                     |
 | Short phone or landscape viewport | Compact introduction and reduced preview/dialog heights.                              |
 
-On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panels. Their DOM nodes and settings remain in place. On larger screens, the panels appear together. Dynamic viewport units and `env(safe-area-inset-*)` keep controls clear of browser chrome and device cutouts. The styles also use `:has()` and backdrop filtering, so older browsers may differ in presentation.
+On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panels. Their DOM nodes and settings remain in place. On larger screens, the panels appear together. Dynamic viewport units and `env(safe-area-inset-*)` keep controls clear of browser chrome and device cutouts. The gallery uses `:has()`, so older browsers may differ in presentation.
 
 ## Application state and ownership
 
@@ -91,7 +91,7 @@ Booth Reset restores the starting style, timer, and format for future captures w
 
 ## Editing after capture
 
-Every capture or import opens a live editor with its composition preview and these controls:
+Every capture or import opens a live editor. Design essentials are visible immediately. Fine-tune design and Edit individual photos are native `<details>` sections that keep advanced controls accessible without overwhelming the initial view. Available controls include:
 
 - Layout: Strip, Grid, or Solo, without retaking the photos.
 - Six filters, brightness, and contrast.
@@ -104,7 +104,7 @@ Select a source-photo thumbnail before changing its zoom, rotation, mirror, or o
 
 **Exports have no watermark or automatic text.** An empty caption stays empty, and the date is off by default. When both are empty, the renderer removes the footer allocation. Branding appears only in the application interface, never in the image.
 
-The editor uses a two-column preview/control layout on wide screens and a stacked layout up to 750 px. Its scrollable phone dialog keeps download and Done editing actions near the bottom.
+The editor uses a two-column preview/control layout on wide screens and a stacked layout up to 750 px. Its footer keeps Done and Download visible while scrolling. Its scrollable phone dialog keeps download and Done editing actions near the bottom.
 
 ## Execution flow
 

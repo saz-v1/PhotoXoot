@@ -95,10 +95,7 @@ filters.forEach((filter, index) => {
   const button = document.createElement("button");
   button.className = "filter" + (index === 0 ? " active" : "");
   button.setAttribute("aria-pressed", index === 0);
-  const thumb = document.createElement("div");
-  thumb.className = "filter-thumb";
-  thumb.style.filter = filter.value;
-  button.append(thumb, document.createTextNode(filter.name));
+  button.textContent = filter.name;
   button.onclick = () => {
     state.filter = index;
     document.querySelectorAll(".filter").forEach((element, i) => {
@@ -142,9 +139,8 @@ document.querySelectorAll(".layout").forEach((button) => {
       count === 1 ? "Take a photo" : "Take 4 photos";
     getElement("boothNote").textContent =
       count === 1
-        ? "One pose. One lovely little moment."
-        : "Four poses. One lovely " +
-          (state.layout === "grid" ? "photo grid." : "photo strip.");
+        ? "1 photo, then edit and download."
+        : "4 photos, then edit and download.";
     updatePreview();
   };
 });
@@ -174,7 +170,7 @@ function resetCustomization() {
   getElement("timer").value = "3";
   getElement("format").value = "png";
   updatePreview();
-  toast("A fresh start. Your moments are still here.");
+  toast("Style reset. Your saved photos are unchanged.");
 }
 getElement("resetBtn").onclick = resetCustomization;
 /** Stop all media tracks and cancel pending camera work by advancing generation. */
@@ -184,7 +180,7 @@ function stopCamera() {
   stream = null;
   getElement("video").srcObject = null;
   getElement("video").hidden = true;
-  getElement("cameraLabel").textContent = "● CAMERA OFF";
+  getElement("cameraLabel").textContent = "Camera off";
   getElement("cameraLabel").classList.remove("on");
   getElement("stopBtn").hidden = true;
   busy = false;
@@ -242,7 +238,7 @@ async function startCamera() {
     if (request !== generation) return false;
     getElement("welcome").hidden = true;
     getElement("demoArt").hidden = true;
-    getElement("cameraLabel").textContent = "● CAMERA ON";
+    getElement("cameraLabel").textContent = "Camera on";
     getElement("cameraLabel").classList.add("on");
     getElement("stopBtn").hidden = false;
     updatePreview();
@@ -258,7 +254,7 @@ async function startCamera() {
     return false;
   } finally {
     getElement("enableBtn").disabled = false;
-    getElement("enableBtn").textContent = "Enable camera ↗";
+    getElement("enableBtn").textContent = "Enable camera";
   }
 }
 getElement("enableBtn").onclick = startCamera;
@@ -449,7 +445,7 @@ async function importPhotos(event) {
     getElement("uploadPreview").hidden = false;
     getElement("welcome").hidden = true;
     getElement("demoArt").hidden = true;
-    getElement("cameraLabel").textContent = "● LOCAL PHOTO";
+    getElement("cameraLabel").textContent = "Uploaded photo";
     updatePreview();
     addMoment(images);
     if (images.length < 4 && state.layout !== "single")
@@ -758,14 +754,11 @@ function renderGallery() {
   if (!moments.length) {
     const element = document.createElement("div");
     element.className = "empty-gallery";
-    const icon = document.createElement("span");
-    icon.className = "empty-icon";
-    icon.textContent = "▧";
     const description = document.createElement("p");
-    description.textContent = "Your next favorite memory goes here.";
+    description.textContent = "No photos yet.";
     const hint = document.createElement("span");
-    hint.textContent = "Take some photos to get started ✧";
-    element.append(icon, description, hint);
+    hint.textContent = "Capture or upload to get started.";
+    element.append(description, hint);
     getElement("gallery").append(element);
     return;
   }
@@ -778,7 +771,7 @@ function renderGallery() {
     const actions = document.createElement("div");
     actions.className = "moment-actions";
     const edit = document.createElement("button");
-    edit.textContent = "Edit & save ↗";
+    edit.textContent = "Edit photo";
     edit.onclick = () => openMoment(moment);
     const remove = document.createElement("button");
     remove.textContent = "×";
@@ -811,7 +804,7 @@ function downloadMoment() {
       link.download = `photoxoot-${Date.now()}.${format === "jpeg" ? "jpg" : "png"}`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-      toast("Saved to your device. Keep the good times.");
+      toast("Download started.");
     },
     "image/" + format,
     0.95,
@@ -838,7 +831,7 @@ getElement("clearBtn").onclick = () => {
     getElement("demoArt").hidden = false;
     renderGallery();
     getElement("infoDialog").close();
-    toast("Session cleared. A clean slate.");
+    toast("Session cleared.");
   };
 };
 /** Open an information dialog. Content must be trusted, application-owned HTML. */
