@@ -894,3 +894,60 @@ dialog li {
     animation: none !important;
   }
 }
+
+/* Soft booth accents keep controls clear while letting the prints feel playful. */
+:root {
+  --paper: #fcf7f5;
+  --soft: #f8eef1;
+  --line: #eadfe3;
+  --accent: #865369;
+}
+.brand-mark {
+  background: #ca839f;
+}
+.intro h1 {
+  color: #563c49;
+}
+.viewfinder,
+.demo-art {
+  background: #f7eff0;
+}
+.camera-label {
+  color: #705460;
+}
+.primary:hover,
+.capture:hover {
+  background: #724358;
+}
+.result-preview {
+  background: #f5ecef;
+}
+.result-preview canvas {
+  box-shadow: 0 4px 18px #68475218;
+}
+.stickers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.stickers button {
+  height: 56px;
+  background: #fffaf8;
+  font-size: 11px;
+}
+.stickers img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+.stickers button.active {
+  background: #f9e5ed;
+  border-color: var(--accent);
+}
+.sticker-options {
+  margin-bottom: 16px;
+}
+.crop-position {
+  margin-top: 12px;
+}

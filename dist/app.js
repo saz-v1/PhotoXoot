@@ -22,7 +22,7 @@ document.querySelectorAll("[data-panel]").forEach((button) => {
     window.scrollTo({ top: 0, behavior: "instant" });
   };
 });
-// Browser-native filter expressions are shared by the preview and canvas export.
+// CSS expressions feed live video and the portable pixel-based export renderer.
 const MAX_MOMENTS = 12;
 const MAX_IMPORT_FILES = 4;
 const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
@@ -58,10 +58,11 @@ const state = {
 // Transient session resources. Photos never enter persistent browser storage.
 let stream = null;
 let facing = "user";
-let uploaded = null;
+let uploaded = null; // All imported canvases, not just the preview image.
 /** @type {Moment[]} */
 let moments = [];
 let busy = false;
+let openingCamera = false;
 // Incrementing this token invalidates pending camera requests and captures.
 let generation = 0;
 /** @type {Moment | null} */
@@ -141,8 +142,26 @@ document.querySelectorAll(".layout").forEach((button) => {
       count === 1
         ? "1 photo, then edit and download."
         : "4 photos, then edit and download.";
+    updateCaptureControls();
     updatePreview();
   };
+});
+PhotoStickers.choices.forEach((sticker) => {
+  const button = document.createElement("button");
+  button.dataset.sticker = sticker.id;
+  button.classList.toggle("active", !sticker.id);
+  button.setAttribute(
+    "aria-label",
+    sticker.name === "None" ? "No sticker" : `${sticker.name} sticker`,
+  );
+  if (sticker.id) {
+    const image = document.createElement("img");
+    image.src = PhotoStickers.thumbnail(sticker.id);
+    image.alt = "";
+    button.append(image);
+  } else button.textContent = "None";
+  getElement("stickers").append(button);
+  getElement("editSticker").add(new Option(sticker.name, sticker.id));
 });
 document.querySelectorAll("[data-sticker]").forEach((button) => {
   button.setAttribute("aria-pressed", button.classList.contains("active"));
@@ -173,49 +192,93 @@ function resetCustomization() {
   toast("Style reset. Your saved photos are unchanged.");
 }
 getElement("resetBtn").onclick = resetCustomization;
-/** Stop all media tracks and cancel pending camera work by advancing generation. */
+/** Keep controls in sync with cancellable camera/import/capture work. */
+function updateCaptureControls() {
+  const locked = busy || openingCamera;
+  for (const id of [
+    "captureBtn",
+    "uploadBtn",
+    "enableBtn",
+    "useCameraBtn",
+    "switchBtn",
+    "mirrorBtn",
+    "timer",
+  ]) {
+    getElement(id).disabled = locked;
+  }
+  document
+    .querySelectorAll(
+      "#customizePanel button, #customizePanel input, #customizePanel select",
+    )
+    .forEach((element) => {
+      element.disabled = locked;
+    });
+  getElement("enableBtn").textContent = openingCamera
+    ? "Opening camera…"
+    : "Enable camera";
+  getElement("stopBtn").hidden = !stream && !locked;
+  getElement("stopBtn").textContent = locked ? "Cancel" : "Stop camera";
+  if (!busy)
+    getElement("captureText").textContent = uploaded
+      ? "Use uploaded photos"
+      : state.layout === "single"
+        ? "Take a photo"
+        : "Take 4 photos";
+}
+
+/** Restore a usable source view after success, cancellation, or camera failure. */
+function updateSourceView() {
+  const hasCamera = Boolean(stream);
+  getElement("video").hidden = !hasCamera;
+  getElement("uploadPreview").hidden = hasCamera || !uploaded;
+  getElement("welcome").hidden = hasCamera || Boolean(uploaded);
+  getElement("demoArt").hidden = hasCamera || Boolean(uploaded);
+  getElement("useCameraBtn").hidden = !uploaded || hasCamera;
+  getElement("cameraLabel").textContent = hasCamera
+    ? "Camera on"
+    : uploaded
+      ? "Uploaded photos"
+      : "Camera off";
+  getElement("cameraLabel").classList.toggle("on", hasCamera);
+  updateCaptureControls();
+}
+
+/** Invalidate pending async work before releasing tracks and restoring controls. */
 function stopCamera() {
   generation++;
   if (stream) stream.getTracks().forEach((track) => track.stop());
   stream = null;
   getElement("video").srcObject = null;
-  getElement("video").hidden = true;
-  getElement("cameraLabel").textContent = "Camera off";
-  getElement("cameraLabel").classList.remove("on");
-  getElement("stopBtn").hidden = true;
+  openingCamera = false;
   busy = false;
-  getElement("captureBtn").disabled = false;
   getElement("countdown").hidden = true;
-  if (!uploaded) {
-    getElement("welcome").hidden = false;
-    getElement("demoArt").hidden = false;
-  }
+  updateSourceView();
 }
 const stopButton = document.createElement("button");
 stopButton.id = "stopBtn";
 stopButton.className = "control";
-stopButton.textContent = "Stop camera";
 stopButton.hidden = true;
 stopButton.onclick = () => {
   stopCamera();
-  toast("Camera off. Your photos stay in this tab.");
+  toast("Camera and pending capture stopped.");
 };
 document
   .querySelector(".camera-controls")
   .insertBefore(stopButton, getElement("soundBtn"));
-/** Request the preferred camera. Resolve true only when its preview is ready. */
+
+/** Request one camera at a time and release failed, stale, or externally ended streams. */
 async function startCamera() {
+  if (openingCamera || busy) return false;
   if (!navigator.mediaDevices?.getUserMedia) {
-    toast(
-      "Camera needs HTTPS or localhost and a supported browser. You can still upload photos.",
-    );
+    toast("Camera needs HTTPS or localhost. You can still upload photos.");
     return false;
   }
   const request = ++generation;
-  getElement("enableBtn").disabled = true;
-  getElement("enableBtn").textContent = "Opening camera…";
+  openingCamera = true;
+  updateCaptureControls();
+  let next = null;
   try {
-    const next = await navigator.mediaDevices.getUserMedia({
+    next = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
         facingMode: { ideal: facing },
@@ -229,35 +292,51 @@ async function startCamera() {
     }
     if (stream) stream.getTracks().forEach((track) => track.stop());
     stream = next;
-    uploaded = null;
-    getElement("uploadPreview").hidden = true;
-    getElement("video").srcObject = stream;
-    getElement("video").hidden = false;
-    getElement("video").classList.toggle("mirrored", state.mirror);
-    await getElement("video").play();
+    const video = getElement("video");
+    video.srcObject = next;
+    video.hidden = false;
+    video.classList.toggle("mirrored", state.mirror);
+    await video.play();
     if (request !== generation) return false;
-    getElement("welcome").hidden = true;
-    getElement("demoArt").hidden = true;
-    getElement("cameraLabel").textContent = "Camera on";
-    getElement("cameraLabel").classList.add("on");
-    getElement("stopBtn").hidden = false;
+    uploaded = null;
+    getElement("uploadPreview").removeAttribute("src");
+    next.getVideoTracks().forEach((track) =>
+      track.addEventListener(
+        "ended",
+        () => {
+          if (stream === next) {
+            stopCamera();
+            toast("Camera disconnected. Enable it again or upload photos.");
+          }
+        },
+        { once: true },
+      ),
+    );
+    updateSourceView();
     updatePreview();
     return true;
   } catch (error) {
+    if (next) next.getTracks().forEach((track) => track.stop());
+    if (request !== generation) return false;
+    stopCamera();
     toast(
       error.name === "NotAllowedError"
-        ? "Camera permission was declined. Allow it in browser settings, or upload a photo."
+        ? "Allow camera access in Safari or your browser settings, or upload photos."
         : error.name === "NotFoundError"
-          ? "No camera found. Try uploading your favorite photos."
-          : "Camera unavailable. Close other camera apps, or upload a photo.",
+          ? "No camera found. Try uploading photos."
+          : "Camera unavailable. Try again or upload photos.",
     );
     return false;
   } finally {
-    getElement("enableBtn").disabled = false;
-    getElement("enableBtn").textContent = "Enable camera";
+    // A cancelled request must never reset the controls of a newer request.
+    if (request === generation) {
+      openingCamera = false;
+      updateSourceView();
+    }
   }
 }
 getElement("enableBtn").onclick = startCamera;
+getElement("useCameraBtn").onclick = startCamera;
 getElement("mirrorBtn").onclick = () => {
   state.mirror = !state.mirror;
   getElement("mirrorBtn").classList.toggle("active", state.mirror);
@@ -276,29 +355,41 @@ getElement("switchBtn").onclick = async () => {
 };
 getElement("soundBtn").onclick = () => {
   state.sound = !state.sound;
+  if (state.sound) prepareShutterSound();
   getElement("soundBtn").classList.toggle("active", state.sound);
   getElement("soundBtn").setAttribute("aria-pressed", state.sound);
   toast(state.sound ? "Shutter sound on." : "Shutter sound off.");
 };
-/** Play a short synthesized shutter tone when sound is enabled. */
-function shutterSound() {
+let shutterAudio = null;
+/** Safari needs audio activation inside the original button/keyboard gesture. */
+function prepareShutterSound() {
   if (!state.sound) return;
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    const context = new AudioContextClass(),
-      oscillator = context.createOscillator(),
-      gain = context.createGain();
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.frequency.value = 650;
-    gain.gain.setValueAtTime(0.07, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.09);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.1);
-    oscillator.onended = () => context.close();
+    if (!shutterAudio || shutterAudio.state === "closed")
+      shutterAudio = new AudioContextClass();
+    shutterAudio.resume().catch(() => {});
   } catch {
-    // Audio is optional; unavailable audio must not prevent photo capture.
+    /* Audio remains optional. */
   }
+}
+/** Play a short tone on the already activated audio context. */
+function shutterSound() {
+  if (!state.sound || !shutterAudio || shutterAudio.state !== "running") return;
+  const context = shutterAudio;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.frequency.value = 650;
+  gain.gain.setValueAtTime(0.07, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.09);
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.1);
+  oscillator.onended = () => {
+    oscillator.disconnect();
+    gain.disconnect();
+  };
 }
 /**
  * Scale and center an image to fill a destination rectangle, like object-fit: cover.
@@ -310,25 +401,26 @@ function shutterSound() {
  * @param {number} width Destination width.
  * @param {number} height Destination height.
  */
-function drawCover(context, image, x, y, width, height) {
+function drawCover(context, image, x, y, width, height, edit = {}) {
   const imageWidth = image.videoWidth || image.naturalWidth || image.width,
     imageHeight = image.videoHeight || image.naturalHeight || image.height;
-  const scale = Math.max(width / imageWidth, height / imageHeight);
+  const scale =
+    Math.max(width / imageWidth, height / imageHeight) * (edit.zoom || 1);
   context.drawImage(
     image,
-    (width - imageWidth * scale) / 2 + x,
-    (height - imageHeight * scale) / 2 + y,
+    ((width - imageWidth * scale) * ((edit.panX || 0) + 100)) / 200 + x,
+    ((height - imageHeight * scale) * ((edit.panY || 0) + 100)) / 200 + y,
     imageWidth * scale,
     imageHeight * scale,
   );
 }
 /** Copy the current video frame into a 1000 × 750 canvas, applying mirror only. */
-function snapshot() {
+function snapshot(mirror = state.mirror) {
   const canvas = document.createElement("canvas");
   canvas.width = 1000;
   canvas.height = 750;
   const context = canvas.getContext("2d");
-  if (state.mirror) {
+  if (mirror) {
     context.translate(canvas.width, 0);
     context.scale(-1, 1);
   }
@@ -339,57 +431,64 @@ function snapshot() {
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Capture one or four raw frames after countdowns, or reuse the imported preview. */
 async function capture() {
-  if (busy) return;
-  if (!stream && !uploaded) {
-    await startCamera();
+  prepareShutterSound();
+  if (busy || openingCamera || document.querySelector("dialog[open]")) return;
+  if (moments.length >= MAX_MOMENTS) {
+    toast("Session full. Remove a photo set to make room.");
     return;
   }
+  if (!stream && !uploaded && !(await startCamera())) return;
   if (uploaded) {
-    addMoment([uploaded]);
+    addMoment([...uploaded]);
     return;
   }
   if (!getElement("video").videoWidth) {
     toast("Camera is warming up. Try again in a moment.");
     return;
   }
+  const token = generation;
+  const settings = createMomentSettings();
+  const mirror = state.mirror;
+  const photos = [];
+  const total = settings.layout === "single" ? 1 : 4;
+  const delay = Number(getElement("timer").value);
   busy = true;
-  getElement("captureBtn").disabled = true;
-  const token = generation,
-    photos = [],
-    total = state.layout === "single" ? 1 : 4,
-    delay = Number(getElement("timer").value);
+  updateCaptureControls();
   try {
     for (let shot = 0; shot < total; shot++) {
-      for (let n = delay; n > 0; n--) {
+      getElement("captureText").textContent = `Pose ${shot + 1} of ${total}`;
+      for (let seconds = delay; seconds > 0; seconds--) {
         if (token !== generation) return;
-        getElement("countdown").textContent = n;
+        getElement("countdown").textContent = seconds;
         getElement("countdown").hidden = false;
-        getElement("captureText").textContent = `Pose ${shot + 1} of ${total}`;
         await pause(1000);
       }
       if (token !== generation) return;
       getElement("countdown").hidden = true;
-      photos.push(snapshot());
+      photos.push(snapshot(mirror));
       shutterSound();
       getElement("flash").classList.remove("flash");
-      // Force layout so removing and re-adding the class restarts the flash animation.
-      void getElement("flash").offsetWidth;
+      void getElement("flash").offsetWidth; // Restart the flash animation for each shot.
       getElement("flash").classList.add("flash");
       if (shot < total - 1) await pause(650);
     }
-    addMoment(photos);
+    if (token === generation) addMoment(photos, settings);
+  } catch {
+    if (token === generation) toast("Capture failed. Please try again.");
   } finally {
-    busy = false;
-    getElement("captureBtn").disabled = false;
-    getElement("countdown").hidden = true;
-    getElement("captureText").textContent =
-      state.layout === "single" ? "Take a photo" : "Take 4 photos";
+    if (token === generation) {
+      busy = false;
+      getElement("countdown").hidden = true;
+      updateCaptureControls();
+    }
   }
 }
 getElement("captureBtn").onclick = capture;
 document.addEventListener("keydown", (event) => {
   if (
     event.code === "Space" &&
+    !event.repeat &&
+    !document.activeElement.isContentEditable &&
     !["INPUT", "SELECT", "TEXTAREA", "BUTTON", "SUMMARY"].includes(
       document.activeElement.tagName,
     ) &&
@@ -405,53 +504,67 @@ getElement("uploadBtn").onclick = () => {
 /** Validate and decode up to four local files, downscale them, then create a moment. */
 async function importPhotos(event) {
   const files = Array.from(event.target.files);
-  if (!files.length) return;
-  const images = [];
-  for (const file of files.slice(0, MAX_IMPORT_FILES)) {
-    if (
-      !SUPPORTED_IMAGE_TYPES.includes(file.type) ||
-      file.size > MAX_IMPORT_BYTES
-    ) {
-      toast("Choose a JPG, PNG, or WebP under 20 MB.");
-      continue;
-    }
-    const url = URL.createObjectURL(file);
-    try {
-      const image = new Image();
-      image.src = url;
-      await image.decode();
-      const canvas = document.createElement("canvas");
-      const ratio = Math.min(
-        1,
-        MAX_IMPORT_DIMENSION / Math.max(image.width, image.height),
-      );
-      canvas.width = Math.round(image.width * ratio);
-      canvas.height = Math.round(image.height * ratio);
-      canvas
-        .getContext("2d")
-        .drawImage(image, 0, 0, canvas.width, canvas.height);
-      images.push(canvas);
-    } catch {
-      toast("That image could not be opened. Try another photo.");
-    } finally {
-      URL.revokeObjectURL(url);
-    }
+  event.target.value = ""; // Allow selecting the same file again after a failure.
+  if (!files.length || busy || openingCamera) return;
+  if (moments.length >= MAX_MOMENTS) {
+    toast("Session full. Remove a photo set before uploading.");
+    return;
   }
-  event.target.value = "";
-  if (images.length) {
-    stopCamera();
-    uploaded = images[0];
-    getElement("uploadPreview").src = uploaded.toDataURL("image/jpeg", 0.9);
-    getElement("uploadPreview").hidden = false;
-    getElement("welcome").hidden = true;
-    getElement("demoArt").hidden = true;
-    getElement("cameraLabel").textContent = "Uploaded photo";
+  stopCamera();
+  const token = generation;
+  const settings = createMomentSettings();
+  busy = true;
+  updateCaptureControls();
+  const images = [];
+  try {
+    for (const file of files.slice(0, MAX_IMPORT_FILES)) {
+      if (token !== generation) return;
+      // Some iPhone file providers omit MIME types; decoding is the final validation.
+      const validType =
+        SUPPORTED_IMAGE_TYPES.includes(file.type) ||
+        (!file.type && /\.(jpe?g|png|webp)$/i.test(file.name));
+      if (!validType || file.size > MAX_IMPORT_BYTES) {
+        toast("Choose JPG, PNG, or WebP images up to 20 MB.");
+        continue;
+      }
+      const url = URL.createObjectURL(file);
+      try {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        if (token !== generation) return;
+        const ratio = Math.min(
+          1,
+          MAX_IMPORT_DIMENSION /
+            Math.max(image.naturalWidth, image.naturalHeight),
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+        canvas
+          .getContext("2d")
+          .drawImage(image, 0, 0, canvas.width, canvas.height);
+        images.push(canvas);
+      } catch {
+        if (token === generation)
+          toast("That image could not be opened. Use JPG, PNG, or WebP.");
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+    if (token !== generation || !images.length) return;
+    uploaded = images;
+    getElement("uploadPreview").src = images[0].toDataURL("image/jpeg", 0.9);
+    updateSourceView();
     updatePreview();
-    addMoment(images);
-    if (images.length < 4 && state.layout !== "single")
-      toast(
-        "Photo added. Empty slots repeat your photos. Choose Solo shot for one.",
-      );
+    addMoment([...images], settings);
+    if (files.length > MAX_IMPORT_FILES)
+      toast("Used the first four selected photos.");
+  } finally {
+    if (token === generation) {
+      busy = false;
+      updateSourceView();
+    }
   }
 }
 getElement("fileInput").onchange = importPhotos;
@@ -462,6 +575,8 @@ function createMomentSettings() {
     filter: state.filter,
     frameColor: colors[state.color].value,
     sticker: state.sticker,
+    stickerSize: 1,
+    stickerPosition: "bottom-right",
     caption: getElement("caption").value.trim(),
     brightness: Number(getElement("brightness").value),
     contrast: Number(getElement("contrast").value),
@@ -518,21 +633,25 @@ function renderMoment(moment, canvas) {
     context.beginPath();
     context.rect(x, y, photoWidth, photoHeight);
     context.clip();
-    context.filter = filterValue(settings);
+
     context.translate(x + photoWidth / 2, y + photoHeight / 2);
     context.rotate((edit.rotation * Math.PI) / 180);
-    context.scale(edit.mirror ? -edit.zoom : edit.zoom, edit.zoom);
+    context.scale(edit.mirror ? -1 : 1, 1);
     // Swap crop dimensions for quarter turns so rotated photos still fill the slot.
     const sideways = edit.rotation % 180 !== 0;
     const cropWidth = sideways ? photoHeight : photoWidth;
     const cropHeight = sideways ? photoWidth : photoHeight;
     drawCover(
       context,
-      moment.photos[photoIndex],
+      PhotoEffects.filteredPhoto(
+        moment.photos[photoIndex],
+        filterValue(settings),
+      ),
       -cropWidth / 2,
       -cropHeight / 2,
       cropWidth,
       cropHeight,
+      edit,
     );
     context.restore();
   }
@@ -562,16 +681,17 @@ function renderMoment(moment, canvas) {
     context.fillText(moment.date, width / 2, photoBottom + (caption ? 77 : 60));
   }
   if (settings.sticker) {
-    context.save();
-    context.font = `${width / 12}px Georgia`;
-    context.fillStyle =
-      settings.sticker === "♥"
-        ? "#cc7e69"
-        : frameTextColor(settings.frameColor);
-    context.translate(width - Math.max(padding, width / 16), photoBottom - 12);
-    context.rotate(0.15);
-    context.fillText(settings.sticker, 0, 0);
-    context.restore();
+    const size = (width / 8) * settings.stickerSize;
+    const inset = Math.max(padding, size / 2 + 5);
+    const left = settings.stickerPosition.endsWith("left");
+    const top = settings.stickerPosition.startsWith("top");
+    PhotoStickers.draw(
+      context,
+      settings.sticker,
+      left ? inset : width - inset,
+      top ? inset : canvas.height - inset,
+      size,
+    );
   }
 }
 
@@ -583,6 +703,8 @@ const editorFields = {
   editCaption: ["caption", "string"],
   editCaptionFont: ["captionFont", "string"],
   editSticker: ["sticker", "string"],
+  editStickerSize: ["stickerSize", "number"],
+  editStickerPosition: ["stickerPosition", "string"],
   editBrightness: ["brightness", "number"],
   editContrast: ["contrast", "number"],
   editPadding: ["padding", "number"],
@@ -592,8 +714,15 @@ const editorFields = {
 };
 
 /** Render edits immediately; thumbnail caching happens when the editor closes. */
+let editorRenderFrame = null;
 function refreshEditorPreview() {
-  if (selectedMoment) renderMoment(selectedMoment, getElement("resultCanvas"));
+  if (editorRenderFrame !== null) return;
+  editorRenderFrame = requestAnimationFrame(() => {
+    editorRenderFrame = null;
+    if (selectedMoment && getElement("resultDialog").open) {
+      renderMoment(selectedMoment, getElement("resultCanvas"));
+    }
+  });
 }
 
 /** Load the selected moment's settings and refresh its individual-photo tools. */
@@ -628,11 +757,14 @@ function renderPhotoTools() {
     button.onclick = () => {
       selectedPhotoIndex = index;
       renderPhotoTools();
+      getElement("editPhotos").children[index].focus();
     };
     photos.append(button);
   });
   const edit = selectedMoment.photoEdits[selectedPhotoIndex];
   getElement("editZoom").value = edit.zoom;
+  getElement("editPanX").value = edit.panX || 0;
+  getElement("editPanY").value = edit.panY || 0;
   getElement("editPhotoMirror").setAttribute("aria-pressed", edit.mirror);
   getElement("movePhotoLeft").disabled = selectedPhotoIndex === 0;
   getElement("movePhotoRight").disabled =
@@ -664,6 +796,8 @@ function resetMomentEdits() {
     zoom: 1,
     rotation: 0,
     mirror: false,
+    panX: 0,
+    panY: 0,
   }));
   selectedPhotoIndex = 0;
   syncEditor();
@@ -673,7 +807,7 @@ filters.forEach((filter, index) => {
   getElement("editFilter").add(new Option(filter.name, String(index)));
 });
 for (const [id, [property, type]] of Object.entries(editorFields)) {
-  getElement(id).addEventListener("input", (event) => {
+  const applySetting = (event) => {
     if (!selectedMoment) return;
     selectedMoment.settings[property] =
       type === "boolean"
@@ -682,7 +816,9 @@ for (const [id, [property, type]] of Object.entries(editorFields)) {
           ? Number(event.target.value)
           : event.target.value;
     refreshEditorPreview();
-  });
+  };
+  getElement(id).addEventListener("input", applySetting);
+  getElement(id).addEventListener("change", applySetting);
 }
 getElement("editZoom").oninput = (event) => {
   if (!selectedMoment) return;
@@ -713,7 +849,7 @@ document
   .addEventListener("submit", (event) => event.preventDefault());
 
 /** Store raw photo canvases and a thumbnail, refresh the gallery, and open the result. */
-function addMoment(photos) {
+function addMoment(photos, settings = createMomentSettings()) {
   if (moments.length >= MAX_MOMENTS) {
     toast("Session full. Download or remove a moment to make room.");
     return;
@@ -722,8 +858,14 @@ function addMoment(photos) {
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     photos,
     originalPhotos: [...photos],
-    photoEdits: photos.map(() => ({ zoom: 1, rotation: 0, mirror: false })),
-    settings: createMomentSettings(),
+    photoEdits: photos.map(() => ({
+      zoom: 1,
+      rotation: 0,
+      mirror: false,
+      panX: 0,
+      panY: 0,
+    })),
+    settings,
     date: new Date().toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
@@ -743,6 +885,7 @@ function openMoment(moment) {
   selectedMoment = moment;
   selectedPhotoIndex = 0;
   syncEditor();
+  renderMoment(moment, getElement("resultCanvas"));
   getElement("resultDialog").showModal();
   // Each reopening starts at the preview rather than retaining the previous scroll position.
   getElement("resultDialog").scrollTop = 0;
@@ -802,7 +945,9 @@ function downloadMoment() {
         link = document.createElement("a");
       link.href = url;
       link.download = `photoxoot-${Date.now()}.${format === "jpeg" ? "jpg" : "png"}`;
+      document.body.append(link);
       link.click();
+      link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       toast("Download started.");
     },
@@ -812,7 +957,7 @@ function downloadMoment() {
 }
 getElement("downloadBtn").onclick = downloadMoment;
 getElement("clearBtn").onclick = () => {
-  if (!moments.length && !uploaded && !stream) {
+  if (!moments.length && !uploaded && !stream && !busy && !openingCamera) {
     toast("Your session is already empty.");
     return;
   }
@@ -825,6 +970,9 @@ getElement("clearBtn").onclick = () => {
     moments = [];
     uploaded = null;
     selectedMoment = null;
+    updateSourceView();
+    getElement("resultCanvas").width = 1;
+    getElement("resultCanvas").height = 1;
     getElement("uploadPreview").removeAttribute("src");
     getElement("uploadPreview").hidden = true;
     getElement("welcome").hidden = false;
@@ -869,7 +1017,9 @@ document.querySelectorAll("dialog").forEach((dialog) =>
   }),
 );
 getElement("resultDialog").addEventListener("close", () => {
+  if (getElement("resultDialog").open) return;
   if (selectedMoment) {
+    renderMoment(selectedMoment, getElement("resultCanvas"));
     selectedMoment.thumbnail = getElement("resultCanvas").toDataURL(
       "image/jpeg",
       0.85,
@@ -891,7 +1041,25 @@ async function toggleFullscreen() {
 }
 getElement("fullscreenBtn").onclick = toggleFullscreen;
 // Release hardware when leaving the page or moving this tab into the background.
-window.addEventListener("pagehide", stopCamera);
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden && stream) stopCamera();
+window.addEventListener("pagehide", () => {
+  stopCamera();
+  if (shutterAudio) shutterAudio.close().catch(() => {});
 });
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && (stream || openingCamera || busy)) stopCamera();
+});
+
+// Crop position belongs to its source photo and survives reorder/reset/reopening.
+for (const [id, property] of [
+  ["editPanX", "panX"],
+  ["editPanY", "panY"],
+]) {
+  getElement(id).addEventListener("input", (event) => {
+    if (!selectedMoment) return;
+    selectedMoment.photoEdits[selectedPhotoIndex][property] = Number(
+      event.target.value,
+    );
+    refreshEditorPreview();
+  });
+}
+updateSourceView();
