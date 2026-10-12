@@ -16,6 +16,16 @@ Open [localhost:8080](http://localhost:8080) and enable the camera, or import ph
 
 For deployment, upload the contents of `dist/` to an HTTPS static host. Camera access requires a secure context such as HTTPS or localhost. A phone visiting a computer's ordinary HTTP LAN address may load the page but cannot necessarily use the camera. Use a modern browser supporting Canvas 2D, media capture, native dialogs, and the CSS features described below.
 
+## GitHub Pages deployment
+
+The public site is [PhotoXoot](https://saz-v1.github.io/PhotoXoot/).
+
+`.github/workflows/pages.yml` deploys only `dist/` through GitHub Actions. Push website changes to `main` to publish them automatically, or run the workflow manually from the repository's Actions tab. The workflow checks JavaScript syntax, configures Pages, uploads the static site, and deploys it to the `github-pages` environment. No build or package installation is needed.
+
+Repository **Settings → Pages → Build and deployment → Source** must be **GitHub Actions**. Deployment status and errors appear in [Actions](https://github.com/saz-v1/PhotoXoot/actions). Files use relative asset URLs so the site works under the repository's `/PhotoXoot/` path. HTTPS supports camera access; visitors still need to grant browser permission.
+
+This setup follows [GitHub's custom Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
 ## Project structure
 
 ```text
