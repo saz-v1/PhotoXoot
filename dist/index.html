@@ -11,11 +11,13 @@
       name="description"
       content="A little photo booth for big memories. Private, playful, and entirely in your browser."
     />
+    <!-- Local-only processing: app connections are blocked by the policy below. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
-    <title>Little Moments — Your private photo booth</title>
+    <title>PhotoXoot — Your private photo booth</title>
+    <!-- Load base styles before responsive overrides; defer JS until DOM parsing finishes. -->
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="mobile.css" />
     <script src="app.js" defer></script>
@@ -23,7 +25,7 @@
   <body data-mobile-panel="booth">
     <header class="header">
       <a class="brand" href="#"
-        ><span class="brand-icon">✳</span> little moments<span class="brand-dot"
+        ><span class="brand-icon">✳</span> PhotoXoot<span class="brand-dot"
           >®</span
         ></a
       >
@@ -37,15 +39,14 @@
     <main>
       <section class="intro">
         <div class="eyebrow"><span></span> YOUR BROWSER. YOUR MEMORIES.</div>
-        <h1>
-          Good times. <em>Little moments.</em><span class="scribble">✷</span>
-        </h1>
+        <h1>Good times. <em>PhotoXoot.</em><span class="scribble">✷</span></h1>
         <p>
           A photo booth for your everyday kind of magic. Strike a pose, make it
           yours,<br class="desktop" />
           and keep it forever. All without leaving your device.
         </p>
       </section>
+      <!-- Camera and customization share the desktop workspace. -->
       <div class="workspace">
         <section class="booth-card" id="boothPanel" aria-label="Photo booth">
           <div class="card-heading">
@@ -184,6 +185,7 @@
               <h3>A little filter</h3>
               <span>6 moods</span>
             </div>
+            <!-- Filter and frame buttons are generated from the catalogs in app.js. -->
             <div class="filters" id="filters"></div>
             <div class="section-label frame-label">
               <h3>Frame color</h3>
@@ -198,7 +200,7 @@
               <input
                 id="caption"
                 maxlength="50"
-                placeholder="a little moment, a lot of joy"
+                placeholder="Add your own caption"
                 aria-label="Photo caption"
               /><span>✎</span>
             </div>
@@ -255,7 +257,7 @@
       <section class="moments-card" id="momentsPanel">
         <div class="moments-header">
           <div>
-            <h2>Your little moments <span id="momentCount">0</span></h2>
+            <h2>Your photos <span id="momentCount">0</span></h2>
             <p>Made here. Kept here. Download the ones you love.</p>
           </div>
           <button class="text-button" id="clearBtn">
@@ -291,10 +293,11 @@
       </section>
     </main>
     <footer>
-      <a class="brand small" href="#"><span>✳</span> little moments</a>
+      <a class="brand small" href="#"><span>✳</span> PhotoXoot</a>
       <p>Less scrolling. More smiling.</p>
       <span>Made for the moments in between. ✧</span>
     </footer>
+    <!-- data-panel maps navigation to body[data-mobile-panel] in mobile.css. -->
     <nav class="mobile-nav" aria-label="Photo booth sections">
       <button data-panel="booth" aria-controls="boothPanel" aria-pressed="true">
         <span>▣</span>Camera</button
@@ -313,16 +316,141 @@
       </button>
     </nav>
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <!-- Native dialogs provide modal focus behavior and Escape-to-close support. -->
     <dialog id="infoDialog">
       <button class="dialog-close" aria-label="Close dialog">×</button>
       <div id="dialogContent"></div>
     </dialog>
-    <dialog id="resultDialog">
+    <dialog id="resultDialog" aria-labelledby="editorTitle">
       <button class="dialog-close" aria-label="Close preview">×</button>
-      <h2>A moment worth keeping.</h2>
-      <p>Your current frame, caption, and sticker are included.</p>
-      <div class="result-preview"><canvas id="resultCanvas"></canvas></div>
-      <button id="downloadBtn" class="primary">Download your moment ↧</button>
+      <h2 id="editorTitle">Make it your own.</h2>
+      <p>
+        Fine-tune each photo and your design. Edits stay with this moment. No
+        watermark.
+      </p>
+      <div class="result-editor">
+        <div class="result-preview">
+          <canvas
+            id="resultCanvas"
+            aria-label="Edited photo composition"
+          ></canvas>
+        </div>
+        <form class="editor-controls" aria-label="Photo editor">
+          <fieldset>
+            <legend>Your design</legend>
+            <div class="editor-grid">
+              <label
+                >Layout
+                <select id="editLayout">
+                  <option value="strip">Classic strip</option>
+                  <option value="grid">Grid</option>
+                  <option value="single">Solo</option>
+                </select></label
+              >
+              <label
+                >Filter
+                <select id="editFilter"></select
+              ></label>
+              <label
+                >Frame color <input id="editFrameColor" type="color"
+              /></label>
+              <label
+                >Sticker
+                <select id="editSticker">
+                  <option value="">None</option>
+                  <option value="✳">Flower ✳</option>
+                  <option value="♥">Heart ♥</option>
+                  <option value="✦">Star ✦</option>
+                  <option value="☺">Smile ☺</option>
+                  <option value="✿">Blossom ✿</option>
+                </select></label
+              >
+              <label
+                >Frame width
+                <input id="editPadding" type="range" min="0" max="80" step="1"
+              /></label>
+              <label
+                >Photo spacing
+                <input id="editGap" type="range" min="0" max="40" step="1"
+              /></label>
+              <label
+                >Brightness
+                <input
+                  id="editBrightness"
+                  type="range"
+                  min="60"
+                  max="140"
+                  step="1"
+              /></label>
+              <label
+                >Contrast
+                <input
+                  id="editContrast"
+                  type="range"
+                  min="60"
+                  max="140"
+                  step="1"
+              /></label>
+            </div>
+            <label class="editor-caption"
+              >Caption
+              <input
+                id="editCaption"
+                maxlength="50"
+                placeholder="Leave empty for a clean photo"
+            /></label>
+            <div class="editor-grid">
+              <label
+                >Caption font
+                <select id="editCaptionFont">
+                  <option value="Georgia">Classic serif</option>
+                  <option value="Arial">Clean sans serif</option>
+                  <option value="monospace">Typewriter</option>
+                </select></label
+              >
+              <label class="editor-checkbox"
+                ><input id="editShowDate" type="checkbox" /> Include date</label
+              >
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Individual photos</legend>
+            <p class="editor-hint">
+              Choose a source photo to edit. Repeated slots share that photo’s
+              edits. Solo uses the first photo.
+            </p>
+            <div id="editPhotos" class="editor-photos"></div>
+            <label
+              >Zoom
+              <input id="editZoom" type="range" min="1" max="2.5" step="0.05"
+            /></label>
+            <div class="editor-photo-actions">
+              <button type="button" id="rotatePhoto">Rotate 90°</button>
+              <button type="button" id="editPhotoMirror" aria-pressed="false">
+                Mirror photo
+              </button>
+              <button type="button" id="movePhotoLeft">Move earlier</button>
+              <button type="button" id="movePhotoRight">Move later</button>
+            </div>
+          </fieldset>
+          <div class="editor-grid">
+            <label
+              >Download format
+              <select id="editFormat">
+                <option value="png">PNG · best quality</option>
+                <option value="jpeg">JPEG · smaller file</option>
+              </select></label
+            >
+            <button type="button" id="resetMomentBtn" class="text-button">
+              Reset this moment
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="editor-footer">
+        <button id="doneEditingBtn" class="editor-done">Done editing</button>
+        <button id="downloadBtn" class="primary">Download photo ↧</button>
+      </div>
     </dialog>
   </body>
 </html>

@@ -1,18 +1,27 @@
 "use strict";
+
+/**
+ * @typedef {Object} Moment
+ * @property {string} id Session-local identifier.
+ * @property {HTMLCanvasElement[]} photos Raw pixels retained for later restyling.
+ * @property {string} date Localized capture/import date displayed in the footer.
+ * @property {HTMLCanvasElement[]} originalPhotos Source references in their original order.
+ * @property {Object} initialSettings Initial design snapshot for resetting the editor.
+ * @property {Object} settings Independent layout, styling, and export preferences.
+ * @property {{zoom: number, rotation: number, mirror: boolean}[]} photoEdits Per-photo transforms.
+ * @property {string} [thumbnail] JPEG data URL cached for the gallery.
+ */
 /** Resolve a required HTML element by its stable ID. */
 const getElement = (id) => document.getElementById(id);
-document.querySelectorAll("[data-panel]").forEach(
-  (button) =>
-    (button.onclick = () => {
-      document.body.dataset.mobilePanel = button.dataset.panel;
-      document
-        .querySelectorAll("[data-panel]")
-        .forEach((other) =>
-          other.setAttribute("aria-pressed", other === button),
-        );
-      window.scrollTo({ top: 0, behavior: "instant" });
-    }),
-);
+document.querySelectorAll("[data-panel]").forEach((button) => {
+  button.onclick = () => {
+    document.body.dataset.mobilePanel = button.dataset.panel;
+    document
+      .querySelectorAll("[data-panel]")
+      .forEach((other) => other.setAttribute("aria-pressed", other === button));
+    window.scrollTo({ top: 0, behavior: "instant" });
+  };
+});
 // Browser-native filter expressions are shared by the preview and canvas export.
 const MAX_MOMENTS = 12;
 const MAX_IMPORT_FILES = 4;
@@ -37,7 +46,7 @@ const colors = [
   { name: "Lilac", value: "#ded6e8" },
   { name: "Midnight", value: "#363b34" },
 ];
-// Shared styling is deliberately applied again when an existing moment is opened.
+// Booth settings seed new moments; the result editor keeps independent settings per moment.
 const state = {
   layout: "strip",
   filter: 0,
@@ -50,12 +59,15 @@ const state = {
 let stream = null;
 let facing = "user";
 let uploaded = null;
+/** @type {Moment[]} */
 let moments = [];
 let busy = false;
 // Incrementing this token invalidates pending camera requests and captures.
 let generation = 0;
+/** @type {Moment | null} */
 let selectedMoment = null;
 let toastTimer;
+let selectedPhotoIndex = 0;
 /** Show a temporary status message, replacing any previous toast. */
 function toast(message) {
   getElement("toast").textContent = message;
@@ -64,16 +76,19 @@ function toast(message) {
   toastTimer = setTimeout(() => (getElement("toast").hidden = true), 4200);
 }
 /** Combine the selected filter with the current brightness and contrast controls. */
-function filterValue() {
-  return `${filters[state.filter].value === "none" ? "" : filters[state.filter].value} brightness(${getElement("brightness").value}%) contrast(${getElement("contrast").value}%)`.trim();
+function filterValue(settings = null) {
+  const preset = filters[settings ? settings.filter : state.filter].value;
+  const brightness = settings
+    ? settings.brightness
+    : getElement("brightness").value;
+  const contrast = settings ? settings.contrast : getElement("contrast").value;
+  return `${preset === "none" ? "" : preset} brightness(${brightness}%) contrast(${contrast}%)`.trim();
 }
-/** Update live previews and redraw the selected result when its dialog is open. */
+/** Update booth previews; saved moments use independent editor settings. */
 function updatePreview() {
   getElement("video").style.filter = filterValue();
   getElement("uploadPreview").style.filter = filterValue();
   getElement("demoArt").style.filter = filterValue();
-  if (selectedMoment && getElement("resultDialog").open)
-    renderMoment(selectedMoment, getElement("resultCanvas"));
 }
 // Build filter and frame controls from the option catalogs.
 filters.forEach((filter, index) => {
@@ -113,27 +128,26 @@ colors.forEach((color, index) => {
   getElement("swatches").append(button);
 });
 // Customization controls keep visible selection and aria-pressed in sync.
-document.querySelectorAll(".layout").forEach(
-  (button) =>
-    (button.onclick = () => {
-      state.layout = button.dataset.layout;
-      document.querySelectorAll(".layout").forEach((element) => {
-        element.classList.toggle("active", element === button);
-        element.setAttribute("aria-pressed", element === button);
-      });
-      const count = state.layout === "single" ? 1 : 4;
-      getElement("layoutCount").textContent =
-        count + " photo" + (count === 1 ? "" : "s");
-      getElement("captureText").textContent =
-        count === 1 ? "Take a photo" : "Take 4 photos";
-      getElement("boothNote").textContent =
-        count === 1
-          ? "One pose. One lovely little moment."
-          : "Four poses. One lovely " +
-            (state.layout === "grid" ? "photo grid." : "photo strip.");
-      updatePreview();
-    }),
-);
+document.querySelectorAll(".layout").forEach((button) => {
+  button.onclick = () => {
+    state.layout = button.dataset.layout;
+    document.querySelectorAll(".layout").forEach((element) => {
+      element.classList.toggle("active", element === button);
+      element.setAttribute("aria-pressed", element === button);
+    });
+    const count = state.layout === "single" ? 1 : 4;
+    getElement("layoutCount").textContent =
+      count + " photo" + (count === 1 ? "" : "s");
+    getElement("captureText").textContent =
+      count === 1 ? "Take a photo" : "Take 4 photos";
+    getElement("boothNote").textContent =
+      count === 1
+        ? "One pose. One lovely little moment."
+        : "Four poses. One lovely " +
+          (state.layout === "grid" ? "photo grid." : "photo strip.");
+    updatePreview();
+  };
+});
 document.querySelectorAll("[data-sticker]").forEach((button) => {
   button.setAttribute("aria-pressed", button.classList.contains("active"));
   button.onclick = () => {
@@ -166,7 +180,7 @@ getElement("resetBtn").onclick = resetCustomization;
 /** Stop all media tracks and cancel pending camera work by advancing generation. */
 function stopCamera() {
   generation++;
-  if (stream) stream.getTracks().forEach((t) => t.stop());
+  if (stream) stream.getTracks().forEach((track) => track.stop());
   stream = null;
   getElement("video").srcObject = null;
   getElement("video").hidden = true;
@@ -190,7 +204,9 @@ stopButton.onclick = () => {
   stopCamera();
   toast("Camera off. Your photos stay in this tab.");
 };
-document.querySelector(".camera-controls").insertBefore(stopButton, getElement("soundBtn"));
+document
+  .querySelector(".camera-controls")
+  .insertBefore(stopButton, getElement("soundBtn"));
 /** Request the preferred camera. Resolve true only when its preview is ready. */
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -212,10 +228,10 @@ async function startCamera() {
       },
     });
     if (request !== generation) {
-      next.getTracks().forEach((t) => t.stop());
+      next.getTracks().forEach((track) => track.stop());
       return false;
     }
-    if (stream) stream.getTracks().forEach((t) => t.stop());
+    if (stream) stream.getTracks().forEach((track) => track.stop());
     stream = next;
     uploaded = null;
     getElement("uploadPreview").hidden = true;
@@ -288,7 +304,16 @@ function shutterSound() {
     // Audio is optional; unavailable audio must not prevent photo capture.
   }
 }
-/** Scale and center an image to fill a destination rectangle, like object-fit: cover. */
+/**
+ * Scale and center an image to fill a destination rectangle, like object-fit: cover.
+ * The caller clips the destination when overflow must be hidden.
+ * @param {CanvasRenderingContext2D} context
+ * @param {HTMLVideoElement | HTMLImageElement | HTMLCanvasElement} image
+ * @param {number} x Left edge in canvas pixels.
+ * @param {number} y Top edge in canvas pixels.
+ * @param {number} width Destination width.
+ * @param {number} height Destination height.
+ */
 function drawCover(context, image, x, y, width, height) {
   const imageWidth = image.videoWidth || image.naturalWidth || image.width,
     imageHeight = image.videoHeight || image.naturalHeight || image.height;
@@ -314,6 +339,7 @@ function snapshot() {
   drawCover(context, getElement("video"), 0, 0, canvas.width, canvas.height);
   return canvas;
 }
+/** Resolve after a delay without blocking the browser event loop. */
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Capture one or four raw frames after countdowns, or reuse the imported preview. */
 async function capture() {
@@ -399,10 +425,15 @@ async function importPhotos(event) {
       image.src = url;
       await image.decode();
       const canvas = document.createElement("canvas");
-      const ratio = Math.min(1, MAX_IMPORT_DIMENSION / Math.max(image.width, image.height));
+      const ratio = Math.min(
+        1,
+        MAX_IMPORT_DIMENSION / Math.max(image.width, image.height),
+      );
       canvas.width = Math.round(image.width * ratio);
       canvas.height = Math.round(image.height * ratio);
-      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      canvas
+        .getContext("2d")
+        .drawImage(image, 0, 0, canvas.width, canvas.height);
       images.push(canvas);
     } catch {
       toast("That image could not be opened. Try another photo.");
@@ -428,66 +459,263 @@ async function importPhotos(event) {
   }
 }
 getElement("fileInput").onchange = importPhotos;
-/** Redraw a moment using current global settings; resize the supplied output canvas. */
+/** Snapshot booth defaults so editing one moment never restyles another. */
+function createMomentSettings() {
+  return {
+    layout: state.layout,
+    filter: state.filter,
+    frameColor: colors[state.color].value,
+    sticker: state.sticker,
+    caption: getElement("caption").value.trim(),
+    brightness: Number(getElement("brightness").value),
+    contrast: Number(getElement("contrast").value),
+    padding: 36,
+    gap: 22,
+    showDate: false,
+    captionFont: "Georgia",
+    format: getElement("format").value,
+  };
+}
+
+/** Get readable footer text against any custom frame color. */
+function frameTextColor(hexColor) {
+  const channels = hexColor
+    .slice(1)
+    .match(/.{2}/g)
+    .map((value) => parseInt(value, 16));
+  const brightness =
+    channels[0] * 0.299 + channels[1] * 0.587 + channels[2] * 0.114;
+  return brightness < 140 ? "#faf7ed" : "#313d32";
+}
+
+/**
+ * Compose a saved moment without modifying its raw photos. There is no branding
+ * or automatic caption in exports; only explicitly chosen text is drawn.
+ * @param {Moment} moment
+ * @param {HTMLCanvasElement} canvas
+ */
 function renderMoment(moment, canvas) {
-  const count = state.layout === "single" ? 1 : 4,
-    columns = state.layout === "grid" ? 2 : 1,
-    rows = count / columns,
-    padding = 36,
-    gap = 22,
-    width = state.layout === "strip" ? 600 : state.layout === "grid" ? 1000 : 850,
-    photoWidth = (width - padding * 2 - gap * (columns - 1)) / columns,
-    photoHeight = photoWidth * 0.75,
-    footer = 100;
+  const settings = moment.settings;
+  const count = settings.layout === "single" ? 1 : 4;
+  const columns = settings.layout === "grid" ? 2 : 1;
+  const rows = count / columns;
+  const { padding, gap } = settings;
+  const width =
+    settings.layout === "strip" ? 600 : settings.layout === "grid" ? 1000 : 850;
+  const photoWidth = (width - padding * 2 - gap * (columns - 1)) / columns;
+  const photoHeight = photoWidth * 0.75;
+  const caption = settings.caption.trim();
+  // Omit empty footer space when neither caption nor date has been requested.
+  const footer = caption || settings.showDate ? 100 : 0;
+  const photoBottom = padding + rows * photoHeight + gap * (rows - 1);
   canvas.width = width;
-  canvas.height = padding * 2 + rows * photoHeight + gap * (rows - 1) + footer;
+  canvas.height = photoBottom + padding + footer;
   const context = canvas.getContext("2d");
-  context.fillStyle = colors[state.color].value;
+  context.fillStyle = settings.frameColor;
   context.fillRect(0, 0, width, canvas.height);
-  for (let i = 0; i < count; i++) {
+  for (let slot = 0; slot < count; slot++) {
+    const photoIndex = slot % moment.photos.length;
+    const edit = moment.photoEdits[photoIndex];
+    const x = padding + (slot % columns) * (photoWidth + gap);
+    const y = padding + Math.floor(slot / columns) * (photoHeight + gap);
     context.save();
-    const x = padding + (i % columns) * (photoWidth + gap),
-      y = padding + Math.floor(i / columns) * (photoHeight + gap);
     context.beginPath();
     context.rect(x, y, photoWidth, photoHeight);
-    // Crop overflow and isolate the filter so the frame and text remain unfiltered.
     context.clip();
-    context.filter = filterValue();
+    context.filter = filterValue(settings);
+    context.translate(x + photoWidth / 2, y + photoHeight / 2);
+    context.rotate((edit.rotation * Math.PI) / 180);
+    context.scale(edit.mirror ? -edit.zoom : edit.zoom, edit.zoom);
+    // Swap crop dimensions for quarter turns so rotated photos still fill the slot.
+    const sideways = edit.rotation % 180 !== 0;
+    const cropWidth = sideways ? photoHeight : photoWidth;
+    const cropHeight = sideways ? photoWidth : photoHeight;
     drawCover(
       context,
-      // Cycle through imported photos when fewer images than slots are available.
-      moment.photos[i % moment.photos.length],
-      x,
-      y,
-      photoWidth,
-      photoHeight,
+      moment.photos[photoIndex],
+      -cropWidth / 2,
+      -cropHeight / 2,
+      cropWidth,
+      cropHeight,
     );
     context.restore();
   }
-  const dark = state.color === 6;
-  context.fillStyle = dark ? "#faf7ed" : "#4d6041";
+  context.fillStyle = frameTextColor(settings.frameColor);
   context.textAlign = "center";
-  context.font = `italic ${Math.round(width / 26)}px Georgia`;
-  const caption = getElement("caption").value.trim() || "a little moment, a lot of joy";
-  let fontSize = Math.round(width / 26);
-  // Shrink longer captions to fit the footer without changing the stored text.
-  while (context.measureText(caption).width > width - padding * 3 && fontSize > 12) {
-    context.font = `italic ${--fontSize}px Georgia`;
+  if (caption) {
+    let fontSize = Math.round(width / 26);
+    const setCaptionFont = () => {
+      context.font = `${settings.captionFont === "Georgia" ? "italic " : ""}${fontSize}px ${settings.captionFont}`;
+    };
+    setCaptionFont();
+    while (
+      context.measureText(caption).width > width - Math.max(padding * 2, 24) &&
+      fontSize > 12
+    ) {
+      fontSize--;
+      setCaptionFont();
+    }
+    context.fillText(
+      caption,
+      width / 2,
+      photoBottom + (settings.showDate ? 45 : 60),
+    );
   }
-  context.fillText(caption, width / 2, canvas.height - 65);
-  context.font = `${Math.round(width / 65)}px Arial`;
-  context.fillText("LITTLE MOMENTS  ·  " + moment.date, width / 2, canvas.height - 31);
-  if (state.sticker) {
+  if (settings.showDate) {
+    context.font = `${Math.round(width / 65)}px Arial`;
+    context.fillText(moment.date, width / 2, photoBottom + (caption ? 77 : 60));
+  }
+  if (settings.sticker) {
+    context.save();
     context.font = `${width / 12}px Georgia`;
     context.fillStyle =
-      state.sticker === "♥" ? "#cc7e69" : dark ? "#e1cc90" : "#8a966c";
-    context.save();
-    context.translate(width - padding - 8, canvas.height - footer - 12);
+      settings.sticker === "♥"
+        ? "#cc7e69"
+        : frameTextColor(settings.frameColor);
+    context.translate(width - Math.max(padding, width / 16), photoBottom - 12);
     context.rotate(0.15);
-    context.fillText(state.sticker, 0, 0);
+    context.fillText(settings.sticker, 0, 0);
     context.restore();
   }
 }
+
+// Editor inputs map to saved properties. Numeric values remain numbers in state.
+const editorFields = {
+  editLayout: ["layout", "string"],
+  editFilter: ["filter", "number"],
+  editFrameColor: ["frameColor", "string"],
+  editCaption: ["caption", "string"],
+  editCaptionFont: ["captionFont", "string"],
+  editSticker: ["sticker", "string"],
+  editBrightness: ["brightness", "number"],
+  editContrast: ["contrast", "number"],
+  editPadding: ["padding", "number"],
+  editGap: ["gap", "number"],
+  editShowDate: ["showDate", "boolean"],
+  editFormat: ["format", "string"],
+};
+
+/** Render edits immediately; thumbnail caching happens when the editor closes. */
+function refreshEditorPreview() {
+  if (selectedMoment) renderMoment(selectedMoment, getElement("resultCanvas"));
+}
+
+/** Load the selected moment's settings and refresh its individual-photo tools. */
+function syncEditor() {
+  for (const [id, [property, type]] of Object.entries(editorFields)) {
+    const input = getElement(id);
+    if (type === "boolean") input.checked = selectedMoment.settings[property];
+    else input.value = selectedMoment.settings[property];
+  }
+  renderPhotoTools();
+  refreshEditorPreview();
+}
+
+/** Show source-photo thumbnails and the selected photo's zoom/mirror state. */
+function renderPhotoTools() {
+  const photos = getElement("editPhotos");
+  photos.replaceChildren();
+  selectedMoment.photos.forEach((photo, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", `Edit photo ${index + 1}`);
+    button.setAttribute("aria-pressed", index === selectedPhotoIndex);
+    const image = document.createElement("img");
+    // Generate small thumbnails rather than serializing full-resolution canvases.
+    const thumbnail = document.createElement("canvas");
+    thumbnail.width = 96;
+    thumbnail.height = 72;
+    drawCover(thumbnail.getContext("2d"), photo, 0, 0, 96, 72);
+    image.src = thumbnail.toDataURL("image/jpeg", 0.8);
+    image.alt = "";
+    button.append(image, document.createTextNode(`Photo ${index + 1}`));
+    button.onclick = () => {
+      selectedPhotoIndex = index;
+      renderPhotoTools();
+    };
+    photos.append(button);
+  });
+  const edit = selectedMoment.photoEdits[selectedPhotoIndex];
+  getElement("editZoom").value = edit.zoom;
+  getElement("editPhotoMirror").setAttribute("aria-pressed", edit.mirror);
+  getElement("movePhotoLeft").disabled = selectedPhotoIndex === 0;
+  getElement("movePhotoRight").disabled =
+    selectedPhotoIndex === selectedMoment.photos.length - 1;
+}
+
+/** Move raw pixels and their transforms together, preserving the selected photo. */
+function movePhoto(direction) {
+  if (!selectedMoment) return;
+  const target = selectedPhotoIndex + direction;
+  if (target < 0 || target >= selectedMoment.photos.length) return;
+  for (const collection of [selectedMoment.photos, selectedMoment.photoEdits]) {
+    [collection[selectedPhotoIndex], collection[target]] = [
+      collection[target],
+      collection[selectedPhotoIndex],
+    ];
+  }
+  selectedPhotoIndex = target;
+  renderPhotoTools();
+  refreshEditorPreview();
+}
+
+/** Restore this moment's design and photo transforms without altering other moments. */
+function resetMomentEdits() {
+  if (!selectedMoment) return;
+  selectedMoment.settings = { ...selectedMoment.initialSettings };
+  selectedMoment.photos = [...selectedMoment.originalPhotos];
+  selectedMoment.photoEdits = selectedMoment.photos.map(() => ({
+    zoom: 1,
+    rotation: 0,
+    mirror: false,
+  }));
+  selectedPhotoIndex = 0;
+  syncEditor();
+}
+
+filters.forEach((filter, index) => {
+  getElement("editFilter").add(new Option(filter.name, String(index)));
+});
+for (const [id, [property, type]] of Object.entries(editorFields)) {
+  getElement(id).addEventListener("input", (event) => {
+    if (!selectedMoment) return;
+    selectedMoment.settings[property] =
+      type === "boolean"
+        ? event.target.checked
+        : type === "number"
+          ? Number(event.target.value)
+          : event.target.value;
+    refreshEditorPreview();
+  });
+}
+getElement("editZoom").oninput = (event) => {
+  if (!selectedMoment) return;
+  selectedMoment.photoEdits[selectedPhotoIndex].zoom = Number(
+    event.target.value,
+  );
+  refreshEditorPreview();
+};
+getElement("rotatePhoto").onclick = () => {
+  if (!selectedMoment) return;
+  const edit = selectedMoment.photoEdits[selectedPhotoIndex];
+  edit.rotation = (edit.rotation + 90) % 360;
+  refreshEditorPreview();
+};
+getElement("editPhotoMirror").onclick = () => {
+  if (!selectedMoment) return;
+  const edit = selectedMoment.photoEdits[selectedPhotoIndex];
+  edit.mirror = !edit.mirror;
+  getElement("editPhotoMirror").setAttribute("aria-pressed", edit.mirror);
+  refreshEditorPreview();
+};
+getElement("movePhotoLeft").onclick = () => movePhoto(-1);
+getElement("movePhotoRight").onclick = () => movePhoto(1);
+getElement("resetMomentBtn").onclick = resetMomentEdits;
+getElement("doneEditingBtn").onclick = () => getElement("resultDialog").close();
+document
+  .querySelector(".editor-controls")
+  .addEventListener("submit", (event) => event.preventDefault());
+
 /** Store raw photo canvases and a thumbnail, refresh the gallery, and open the result. */
 function addMoment(photos) {
   if (moments.length >= MAX_MOMENTS) {
@@ -497,12 +725,16 @@ function addMoment(photos) {
   const moment = {
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     photos,
+    originalPhotos: [...photos],
+    photoEdits: photos.map(() => ({ zoom: 1, rotation: 0, mirror: false })),
+    settings: createMomentSettings(),
     date: new Date().toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
     }),
   };
+  moment.initialSettings = { ...moment.settings };
   moments.push(moment);
   const canvas = document.createElement("canvas");
   renderMoment(moment, canvas);
@@ -510,11 +742,14 @@ function addMoment(photos) {
   renderGallery();
   openMoment(moment);
 }
-/** Select a stored moment and display it using the current customization controls. */
+/** Open a stored moment with its own saved design and individual-photo controls. */
 function openMoment(moment) {
   selectedMoment = moment;
-  renderMoment(moment, getElement("resultCanvas"));
+  selectedPhotoIndex = 0;
+  syncEditor();
   getElement("resultDialog").showModal();
+  // Each reopening starts at the preview rather than retaining the previous scroll position.
+  getElement("resultDialog").scrollTop = 0;
 }
 /** Rebuild gallery cards and deletion/edit handlers from the session collection. */
 function renderGallery() {
@@ -526,11 +761,11 @@ function renderGallery() {
     const icon = document.createElement("span");
     icon.className = "empty-icon";
     icon.textContent = "▧";
-    const p = document.createElement("p");
-    p.textContent = "Your next favorite memory goes here.";
+    const description = document.createElement("p");
+    description.textContent = "Your next favorite memory goes here.";
     const hint = document.createElement("span");
     hint.textContent = "Take some photos to get started ✧";
-    element.append(icon, p, hint);
+    element.append(icon, description, hint);
     getElement("gallery").append(element);
     return;
   }
@@ -563,7 +798,7 @@ function downloadMoment() {
   if (!selectedMoment) return;
   const canvas = getElement("resultCanvas");
   renderMoment(selectedMoment, canvas);
-  const format = getElement("format").value;
+  const format = selectedMoment.settings.format;
   canvas.toBlob(
     (blob) => {
       if (!blob) {
@@ -573,7 +808,7 @@ function downloadMoment() {
       const url = URL.createObjectURL(blob),
         link = document.createElement("a");
       link.href = url;
-      link.download = `little-moments-${Date.now()}.${format === "jpeg" ? "jpg" : "png"}`;
+      link.download = `photoxoot-${Date.now()}.${format === "jpeg" ? "jpg" : "png"}`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       toast("Saved to your device. Keep the good times.");
@@ -619,11 +854,13 @@ getElement("privacyBtn").onclick = () =>
 getElement("howBtn").onclick = () =>
   showInfo(
     "A moment in three little steps.",
-    "<ol><li><strong>Get ready.</strong> Enable your camera, or use the upload button to choose up to four local photos.</li><li><strong>Make it yours.</strong> Pick a layout, filter, frame, caption, and sticker. Set your timer and strike a pose. Press Space to capture.</li><li><strong>Keep the magic.</strong> Preview your moment and download it as PNG or JPEG. Reopen any moment to change its style.</li></ol><p>Stay in this tab until you save your favorites. Your session is temporary.</p>",
+    "<ol><li><strong>Get ready.</strong> Enable your camera, or use the upload button to choose up to four local photos.</li><li><strong>Make it yours.</strong> Pick a layout, filter, frame, caption, and sticker. Set your timer and strike a pose. Press Space to capture.</li><li><strong>Keep the magic.</strong> Preview your moment and download it as PNG or JPEG. Use the preview editor to adjust the design, crop, rotation, and photo order. Reopen a moment to keep editing its saved design.</li></ol><p>Stay in this tab until you save your favorites. Your session is temporary.</p>",
   );
 document
   .querySelectorAll(".dialog-close")
-  .forEach((button) => (button.onclick = () => button.closest("dialog").close()));
+  .forEach(
+    (button) => (button.onclick = () => button.closest("dialog").close()),
+  );
 document.querySelectorAll("dialog").forEach((dialog) =>
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) {
@@ -640,7 +877,10 @@ document.querySelectorAll("dialog").forEach((dialog) =>
 );
 getElement("resultDialog").addEventListener("close", () => {
   if (selectedMoment) {
-    selectedMoment.thumbnail = getElement("resultCanvas").toDataURL("image/jpeg", 0.85);
+    selectedMoment.thumbnail = getElement("resultCanvas").toDataURL(
+      "image/jpeg",
+      0.85,
+    );
     renderGallery();
   }
   selectedMoment = null;
