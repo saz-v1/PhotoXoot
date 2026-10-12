@@ -38,7 +38,7 @@ little-moments/       # Existing workspace folder; the app is named PhotoXoot
 - **`boothPanel`:** neutral welcome screen, camera video, imported-image preview, countdown, flash, timer, capture, and camera controls. JavaScript adds the Stop camera button.
 - **`customizePanel`:** visible layout/filter/frame choices; optional caption/sticker and image-adjustment disclosure sections.
 - **`momentsPanel`:** session count, gallery, and clear-session action.
-- **Mobile navigation:** `data-panel` values select `booth`, `customize`, or `moments`; `aria-controls` identifies each panel.
+- **Mobile navigation:** Camera, Style, and Photos buttons use `data-panel` values to select `booth`, `customize`, or `moments`; `aria-controls` identifies each panel.
 - **`infoDialog`:** help, privacy information, and clear-session confirmation.
 - **`resultDialog`:** live composition, design and individual-photo controls, Done editing, and download actions.
 - **`toast`:** temporary status feedback with `role="status"` and `aria-live="polite"`.
@@ -51,12 +51,12 @@ Element IDs are the contract between HTML and `getElement()` in JavaScript. Rena
 
 `mobile.css` layers touch-friendly controls over those rules:
 
-| Condition                         | Behavior                                                                              |
-| --------------------------------- | ------------------------------------------------------------------------------------- |
-| Up to 900 px                      | Single-column workspace and compact controls.                                    |
-| Up to 650 px                      | One panel at a time, fixed bottom navigation, phone-sized dialogs, safe-area spacing. |
-| Up to 359 px                      | Narrower branding, swatches, and gallery actions.                                     |
-| Landscape viewport | Reduced editor preview heights.                              |
+| Condition          | Behavior                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| Up to 900 px       | Single-column workspace and compact controls.                                         |
+| Up to 650 px       | One panel at a time, fixed bottom navigation, phone-sized dialogs, safe-area spacing. |
+| Up to 359 px       | Narrower branding, swatches, and gallery actions.                                     |
+| Landscape viewport | Reduced editor preview heights.                                                       |
 
 On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panels. Their DOM nodes and settings remain in place. On larger screens, the panels appear together. Dynamic viewport units and `env(safe-area-inset-*)` keep controls clear of browser chrome and device cutouts. The gallery uses `:has()`, so older browsers may differ in presentation.
 

@@ -841,13 +841,13 @@ function showInfo(title, content) {
 }
 getElement("privacyBtn").onclick = () =>
   showInfo(
-    "Your memories. Your business.",
+    "Privacy",
     "<p>Your camera feed and photos are processed entirely on your device. This booth has no backend, analytics, cookies, or photo uploads. It makes no network requests for photo processing.</p><p>Photos are held in this tab’s memory and disappear when you clear the session or close the tab. Downloads stay on your device. Imported image metadata is not copied into exported photos.</p><p>Camera access only starts when you enable it. Use <strong>Stop camera</strong> to revoke this session’s access. Hosting providers still receive normal page requests when you visit.</p>",
   );
 getElement("howBtn").onclick = () =>
   showInfo(
-    "A moment in three little steps.",
-    "<ol><li><strong>Get ready.</strong> Enable your camera, or use the upload button to choose up to four local photos.</li><li><strong>Make it yours.</strong> Pick a layout, filter, frame, caption, and sticker. Set your timer and strike a pose. Press Space to capture.</li><li><strong>Keep the magic.</strong> Preview your moment and download it as PNG or JPEG. Use the preview editor to adjust the design, crop, rotation, and photo order. Reopen a moment to keep editing its saved design.</li></ol><p>Stay in this tab until you save your favorites. Your session is temporary.</p>",
+    "How PhotoXoot works",
+    "<ol><li><strong>Capture or upload.</strong> Enable the camera and take your photos, or upload up to four images.</li><li><strong>Edit.</strong> Adjust the layout, filter, and frame. Expand the extra tools to crop, rotate, or reorder individual photos.</li><li><strong>Download.</strong> Save your result as PNG or JPEG. Reopen any photo to continue editing.</li></ol><p>Photos stay in this tab for the current session. Download them before leaving.</p>",
   );
 document
   .querySelectorAll(".dialog-close")
