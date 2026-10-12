@@ -1,124 +1,101 @@
-/* Loaded after style.css. These overrides retain the same DOM at every width. */
-.mobile-nav {
-  display: none;
-}
-button,
-a,
-select,
-summary {
-  touch-action: manipulation;
-}
-/* Tablet layout and touch targets; larger input text avoids mobile focus zoom */
+/* Responsive overrides preserve one DOM and the same capture/edit flow. */
 @media (max-width: 900px) {
   .workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+    gap: 16px;
   }
-  .camera-controls {
-    flex-wrap: wrap;
+  .booth-card,
+  .custom-body {
+    padding-left: 16px;
+    padding-right: 16px;
   }
-  .control,
-  .text-button,
-  .icon-button,
-  .moment-actions button {
-    min-height: 44px;
+  .customize-card > .card-heading {
+    padding: 0 16px;
   }
   .control {
-    font-size: 12px;
+    padding: 6px 8px;
   }
-  .sound-button,
-  .icon-button {
-    min-width: 44px;
+  .key-hint {
+    display: none;
   }
-  .capture {
-    min-height: 54px;
-    font-size: 15px;
+}
+@media (max-width: 750px) {
+  #resultDialog {
+    padding: 48px 18px 18px;
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
   }
-  .upload-button {
-    min-width: 54px;
+  .result-editor {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
   }
-  input:not([type="range"]),
+  .result-preview {
+    position: static;
+    padding: 14px;
+    max-height: 34dvh;
+  }
+  .result-preview canvas {
+    max-height: 29dvh;
+  }
+  .editor-controls label {
+    font-size: 13px;
+  }
+  input:not([type="range"]):not([type="checkbox"]),
   select {
     font-size: 16px !important;
   }
-  .caption-field input {
-    min-height: 48px;
-  }
-  .fine-tune summary {
-    min-height: 44px;
-    align-items: center;
-    font-size: 13px;
-  }
-  .fine-tune label {
-    font-size: 13px;
-    min-height: 44px;
-    gap: 12px;
-  }
-  .fine-tune input[type="range"] {
+  .editor-controls input[type="range"] {
     min-height: 44px;
   }
-  .dialog-close {
-    width: 44px;
-    height: 44px;
+  .editor-footer {
+    bottom: -18px;
+    padding: 12px 0;
+  }
+  .editor-footer .primary {
+    min-width: 0;
+    flex: 1;
   }
 }
-/* Phone panels, bottom navigation, and safe-area spacing */
 @media (max-width: 650px) {
   html {
-    scroll-padding-bottom: 100px;
+    scroll-padding-bottom: 86px;
   }
   body {
-    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
     min-height: 100svh;
   }
   .header {
     height: 64px;
-    padding: 0 max(16px, env(safe-area-inset-left));
-    gap: 8px;
+    padding: 0 max(18px, env(safe-area-inset-left));
   }
   .brand {
     font-size: 21px;
-    gap: 6px;
-    white-space: nowrap;
   }
-  .brand-icon {
-    font-size: 31px;
+  .header nav {
+    gap: 0;
   }
-  .brand-dot {
-    display: none;
-  }
-  .privacy-link {
-    min-height: 44px;
-    font-size: 11px !important;
-    padding: 8px 10px;
+  .header nav button {
+    padding: 8px;
+    font-size: 12px;
   }
   main {
-    padding: 0 max(12px, env(safe-area-inset-left)) 0
-      max(12px, env(safe-area-inset-right));
+    padding: 0 max(14px, env(safe-area-inset-left)) 0
+      max(14px, env(safe-area-inset-right));
   }
   .intro {
-    padding: 19px 8px 20px;
-  }
-  .eyebrow {
-    font-size: 9px;
-    letter-spacing: 1.4px;
+    padding: 16px 4px 24px;
   }
   h1 {
-    font-size: 31px;
-    margin: 10px 0 8px;
+    font-size: 27px;
+    letter-spacing: -0.8px;
   }
   .intro p {
-    font-size: 12px;
-    line-height: 1.5;
-    max-width: 340px;
-    margin: auto;
-  }
-  .scribble {
-    display: none;
+    font-size: 13px;
   }
   .workspace {
     display: block;
   }
-  /* Navigation updates this body attribute; hidden panels retain their state. */
+  /* Selected panel is controlled by navigation's data-panel values. */
   body[data-mobile-panel="booth"] .customize-card,
   body[data-mobile-panel="booth"] .moments-card,
   body[data-mobile-panel="customize"] .booth-card,
@@ -127,417 +104,184 @@ summary {
     display: none;
   }
   .booth-card {
-    padding: 0 12px 14px;
-    border-radius: 13px;
+    padding: 0 12px 16px;
   }
   .card-heading {
-    height: 55px;
-    gap: 8px;
-  }
-  h2 {
-    font-size: 15px;
-  }
-  .card-heading > div {
-    gap: 6px;
-  }
-  .tiny-icon {
-    font-size: 18px;
+    min-height: 56px;
   }
   .local-pill {
-    font-size: 9px;
-    padding: 7px 8px;
+    font-size: 11px;
   }
   .viewfinder {
     aspect-ratio: 4/3;
-    max-height: 42svh;
-    min-height: 210px;
+    min-height: 235px;
   }
   .view-top {
-    top: 10px;
-    left: 10px;
-    right: 8px;
+    top: 8px;
+    left: 8px;
+    right: 6px;
   }
-  .camera-label {
-    font-size: 9px;
-  }
-  .camera-circle {
-    height: 42px;
-    width: 42px;
+  .welcome {
+    padding: 16px;
   }
   .welcome h3 {
-    font-size: 24px;
-    margin: 10px 0 6px;
+    font-size: 18px;
   }
   .welcome p {
-    font-size: 11px;
-    margin-bottom: 12px;
-    text-align: center;
-    padding: 0 8px;
+    font-size: 12px;
+    max-width: 220px;
+    margin: 6px 0 16px;
   }
-  .primary {
-    min-height: 48px;
-    font-size: 14px;
-    padding: 13px 20px;
-  }
-  .permission-note {
-    font-size: 10px;
-    margin-top: 8px;
+  .camera-circle {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 10px;
   }
   .camera-controls {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 7px;
-    margin: 10px 0;
+    gap: 6px;
   }
   .control {
-    justify-content: center;
-    min-width: 0;
     min-height: 44px;
-    padding: 6px;
-    font-size: 11px;
-    gap: 4px;
+    padding: 7px 9px;
+    font-size: 12px;
   }
   .control select {
     font-size: 13px !important;
-    width: 100%;
-    min-width: 0;
-    min-height: 32px;
-    padding: 0;
+    min-height: 28px;
   }
   .sound-button {
-    margin: 0;
-    width: auto;
-    order: 4;
-    font-size: 20px;
-  }
-  #stopBtn {
-    grid-column: span 2;
-    order: 5;
-    font-size: 12px;
+    margin-left: 0;
   }
   .capture-row {
     gap: 8px;
   }
-  .capture {
-    min-height: 54px;
-  }
+  .capture,
   .upload-button {
-    font-size: 28px;
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: 13px;
   }
-  .booth-note {
-    font-size: 11px;
-    line-height: 1.5;
-    margin-top: 10px;
+  .primary {
+    min-height: 44px;
   }
-  .booth-note span {
-    display: none;
-  }
-  .customize-card > .card-heading {
-    padding: 0 16px;
+  .text-button,
+  .layout,
+  .filter,
+  .options-group summary {
+    min-height: 44px;
   }
   .custom-body {
-    padding: 18px 16px;
-  }
-  .section-label h3 {
-    font-size: 14px;
-  }
-  .section-label > span {
-    font-size: 11px;
-  }
-  .text-button {
-    font-size: 12px;
-    min-width: 44px;
-  }
-  .layout-options {
-    gap: 8px;
+    padding: 20px;
   }
   .layout {
-    height: 94px;
-    font-size: 12px;
-  }
-  .filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px 12px;
-  }
-  .filter {
-    font-size: 12px;
-    min-height: 78px;
-    padding: 2px;
-  }
-  .filter-thumb {
-    height: 59px;
-    margin-bottom: 8px;
-  }
-  .swatches {
-    gap: 0;
-    justify-content: space-between;
+    min-height: 82px;
   }
   .swatch {
-    width: 44px;
+    width: 38px;
     height: 44px;
-    border: 0;
-    background: transparent;
-    flex-shrink: 0;
-  }
-  .swatch:after,
-  .swatch.active:after {
-    content: "";
-    position: absolute;
-    inset: 5px;
-    border: 1px solid #2222;
-    background: var(--swatch);
-    border-radius: 50%;
-  }
-  .swatch.active:after {
-    outline: 1px solid #7e8b6c;
-    outline-offset: 3px;
-  }
-  .swatch.active:before {
-    z-index: 1;
-    font-size: 15px;
-  }
-  .caption-field input {
-    padding: 12px;
-  }
-  .stickers {
-    gap: 6px;
   }
   .stickers button {
-    min-height: 46px;
-    min-width: 0;
-    font-size: 25px;
-  }
-  .private-note {
-    padding: 15px 16px;
-  }
-  .private-note p,
-  .private-note strong {
-    font-size: 12px;
+    min-height: 44px;
   }
   .moments-card {
     margin-top: 0;
-    padding: 16px 12px;
+    padding: 18px 14px;
   }
   .moments-header {
-    gap: 8px;
     align-items: flex-start;
-  }
-  .moments-header h2 {
-    font-size: 15px;
+    gap: 8px;
   }
   .moments-header p {
-    font-size: 12px;
-    line-height: 1.5;
-    max-width: 205px;
+    max-width: 190px;
   }
   .moments-header .text-button {
-    font-size: 11px;
     white-space: nowrap;
-  }
-  .empty-gallery {
-    padding: 44px 12px;
-  }
-  .empty-gallery p {
-    font-size: 14px;
-    line-height: 1.5;
-  }
-  .empty-gallery > span:last-child {
-    font-size: 12px;
+    padding: 6px;
   }
   .gallery:has(.moment) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
   .moment {
-    width: calc(50% - 6px);
     padding: 8px;
   }
-  .moment-actions {
-    gap: 4px;
-  }
   .moment-actions button {
-    font-size: 12px;
+    min-height: 44px;
   }
-  .moment-actions button:last-child {
-    min-width: 44px;
-  }
-  .benefits,
   footer {
     display: none;
   }
   .mobile-nav {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 8px max(12px, env(safe-area-inset-right))
-      calc(8px + env(safe-area-inset-bottom))
-      max(12px, env(safe-area-inset-left));
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
-    border-top: 1px solid #dfe3d6;
-    background: #fffefbf5;
-    backdrop-filter: blur(12px);
+    padding: 10px max(14px, env(safe-area-inset-right))
+      calc(10px + env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+    background: white;
+    border-top: 1px solid var(--line);
     z-index: 20;
   }
   .mobile-nav button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 4px;
-    min-height: 52px;
-    border-radius: 10px;
-    font-size: 12px;
-    color: #68735c;
-  }
-  .mobile-nav button > span {
-    font-size: 22px;
-    line-height: 1;
+    min-height: 44px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 13px;
   }
   .mobile-nav button[aria-pressed="true"] {
-    background: #eaf0df;
-    color: #425a34;
+    background: var(--soft);
+    color: var(--ink);
     font-weight: 600;
   }
   .toast {
-    bottom: calc(88px + env(safe-area-inset-bottom));
-    font-size: 13px;
-    line-height: 1.5;
-    width: max-content;
-    max-width: calc(100vw - 24px);
+    bottom: calc(86px + env(safe-area-inset-bottom));
   }
   dialog {
-    width: calc(100% - 24px);
-    max-width: 520px;
-    max-height: calc(
-      100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-    );
-    padding: 54px 18px 20px;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-  dialog h2 {
-    font-size: 26px;
-  }
-  dialog p,
-  dialog li {
-    font-size: 14px;
-    line-height: 1.65;
-  }
-  .dialog-close {
-    top: 7px;
-    right: 7px;
-    font-size: 30px;
-    background: #eceee2;
-    border-radius: 50%;
-  }
-  .result-preview {
-    max-height: 49dvh;
-  }
-  .result-preview canvas {
-    max-height: 46dvh;
-  }
-  #resultDialog > .primary {
-    position: sticky;
-    bottom: 0;
-  }
-}
-/* Narrow phone adjustments */
-@media (max-width: 359px) {
-  .brand {
-    font-size: 19px;
-  }
-  .privacy-link {
-    padding: 6px;
-    font-size: 10px !important;
-  }
-  .privacy-link span {
-    display: none;
-  }
-  .local-pill {
-    font-size: 8px;
-  }
-  .swatch {
-    width: 36px;
-  }
-  .stickers {
-    gap: 4px;
-  }
-  .moment-actions {
-    flex-wrap: wrap;
-  }
-  .moment-actions button:first-child {
-    flex: 1;
-  }
-}
-/* Compact phone heights */
-@media (max-width: 650px) and (max-height: 700px) {
-  .intro {
-    padding: 12px 8px;
-  }
-  .intro p {
-    display: none;
-  }
-  h1 {
-    font-size: 28px;
-  }
-  .viewfinder {
-    min-height: 190px;
-    max-height: 38svh;
-  }
-}
-/* Keep dialogs usable in landscape */
-@media (max-height: 500px) and (orientation: landscape) {
-  dialog {
-    max-height: calc(100dvh - 20px);
-    padding-top: 48px;
-  }
-  .result-preview {
-    max-height: 40dvh;
-  }
-  .result-preview canvas {
-    max-height: 38dvh;
-  }
-}
-
-/* Keep the post-capture preview and its tools in the same scrollable phone dialog. */
-@media (max-width: 750px) {
-  #resultDialog {
     width: calc(100% - 24px);
     max-height: calc(100dvh - 24px);
-    padding: 54px 16px 16px;
+    padding: 48px 20px 24px;
   }
-  .result-editor {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
+  .dialog-close {
+    min-width: 44px;
+    min-height: 44px;
+    top: 6px;
+    right: 6px;
   }
-  .result-editor .result-preview {
-    position: static;
-    max-height: 38dvh;
-  }
-  .result-editor .result-preview canvas {
-    max-height: 34dvh;
-  }
-  .editor-controls label {
-    font-size: 13px;
-  }
-  .editor-controls select,
-  .editor-controls input:not([type="range"]):not([type="checkbox"]) {
-    font-size: 16px;
-  }
-  .editor-controls input[type="range"] {
+  .editor-photo-actions button,
+  .editor-done,
+  .editor-controls select {
     min-height: 44px;
   }
-  .editor-footer {
-    position: sticky;
-    bottom: -16px;
-    background: var(--paper);
-    padding: 12px 0;
-    gap: 8px;
+}
+@media (max-width: 359px) {
+  .header {
+    padding: 0 14px;
   }
-  .editor-footer .primary {
-    min-width: 0;
-    flex: 1;
+  h1 {
+    font-size: 24px;
+  }
+  .viewfinder {
+    min-height: 225px;
+  }
+  .swatch {
+    width: 32px;
+  }
+  .moment-actions button {
+    padding: 5px;
+  }
+  .editor-grid {
+    gap: 10px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .result-preview {
+    max-height: 45dvh;
+  }
+  .result-preview canvas {
+    max-height: 38dvh;
   }
 }
