@@ -1,7 +1,7 @@
 /* Responsive overrides preserve one DOM and the same capture/edit flow. */
 @media (max-width: 900px) {
   .workspace {
-    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
   .booth-card,

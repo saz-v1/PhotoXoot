@@ -53,10 +53,10 @@ Element IDs are the contract between HTML and `getElement()` in JavaScript. Rena
 
 | Condition                         | Behavior                                                                              |
 | --------------------------------- | ------------------------------------------------------------------------------------- |
-| Up to 900 px                      | Tighter two-column workspace and compact controls.                                    |
+| Up to 900 px                      | Single-column workspace and compact controls.                                    |
 | Up to 650 px                      | One panel at a time, fixed bottom navigation, phone-sized dialogs, safe-area spacing. |
 | Up to 359 px                      | Narrower branding, swatches, and gallery actions.                                     |
-| Short phone or landscape viewport | Compact introduction and reduced preview/dialog heights.                              |
+| Landscape viewport | Reduced editor preview heights.                              |
 
 On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panels. Their DOM nodes and settings remain in place. On larger screens, the panels appear together. Dynamic viewport units and `env(safe-area-inset-*)` keep controls clear of browser chrome and device cutouts. The gallery uses `:has()`, so older browsers may differ in presentation.
 
