@@ -1,5 +1,6 @@
 "use strict";
-const $ = (id) => document.getElementById(id);
+/** Resolve a required HTML element by its stable ID. */
+const getElement = (id) => document.getElementById(id);
 document.querySelectorAll("[data-panel]").forEach(
   (button) =>
     (button.onclick = () => {
@@ -12,6 +13,13 @@ document.querySelectorAll("[data-panel]").forEach(
       window.scrollTo({ top: 0, behavior: "instant" });
     }),
 );
+// Browser-native filter expressions are shared by the preview and canvas export.
+const MAX_MOMENTS = 12;
+const MAX_IMPORT_FILES = 4;
+const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
+const MAX_IMPORT_DIMENSION = 1600;
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 const filters = [
   { name: "Original", value: "none" },
   { name: "Vintage", value: "sepia(.4) saturate(.8) contrast(.92)" },
@@ -29,7 +37,8 @@ const colors = [
   { name: "Lilac", value: "#ded6e8" },
   { name: "Midnight", value: "#363b34" },
 ];
-let state = {
+// Shared styling is deliberately applied again when an existing moment is opened.
+const state = {
   layout: "strip",
   filter: 0,
   color: 0,
@@ -37,80 +46,87 @@ let state = {
   mirror: true,
   sound: false,
 };
-let stream = null,
-  facing = "user",
-  uploaded = null,
-  moments = [],
-  busy = false,
-  generation = 0,
-  selectedMoment = null,
-  toastTimer;
+// Transient session resources. Photos never enter persistent browser storage.
+let stream = null;
+let facing = "user";
+let uploaded = null;
+let moments = [];
+let busy = false;
+// Incrementing this token invalidates pending camera requests and captures.
+let generation = 0;
+let selectedMoment = null;
+let toastTimer;
+/** Show a temporary status message, replacing any previous toast. */
 function toast(message) {
-  $("toast").textContent = message;
-  $("toast").hidden = false;
+  getElement("toast").textContent = message;
+  getElement("toast").hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => ($("toast").hidden = true), 4200);
+  toastTimer = setTimeout(() => (getElement("toast").hidden = true), 4200);
 }
+/** Combine the selected filter with the current brightness and contrast controls. */
 function filterValue() {
-  return `${filters[state.filter].value === "none" ? "" : filters[state.filter].value} brightness(${$("brightness").value}%) contrast(${$("contrast").value}%)`.trim();
+  return `${filters[state.filter].value === "none" ? "" : filters[state.filter].value} brightness(${getElement("brightness").value}%) contrast(${getElement("contrast").value}%)`.trim();
 }
+/** Update live previews and redraw the selected result when its dialog is open. */
 function updatePreview() {
-  $("video").style.filter = filterValue();
-  $("uploadPreview").style.filter = filterValue();
-  $("demoArt").style.filter = filterValue();
-  if (selectedMoment && $("resultDialog").open)
-    renderMoment(selectedMoment, $("resultCanvas"));
+  getElement("video").style.filter = filterValue();
+  getElement("uploadPreview").style.filter = filterValue();
+  getElement("demoArt").style.filter = filterValue();
+  if (selectedMoment && getElement("resultDialog").open)
+    renderMoment(selectedMoment, getElement("resultCanvas"));
 }
+// Build filter and frame controls from the option catalogs.
 filters.forEach((filter, index) => {
-  const b = document.createElement("button");
-  b.className = "filter" + (index === 0 ? " active" : "");
-  b.setAttribute("aria-pressed", index === 0);
+  const button = document.createElement("button");
+  button.className = "filter" + (index === 0 ? " active" : "");
+  button.setAttribute("aria-pressed", index === 0);
   const thumb = document.createElement("div");
   thumb.className = "filter-thumb";
   thumb.style.filter = filter.value;
-  b.append(thumb, document.createTextNode(filter.name));
-  b.onclick = () => {
+  button.append(thumb, document.createTextNode(filter.name));
+  button.onclick = () => {
     state.filter = index;
-    document.querySelectorAll(".filter").forEach((el, i) => {
-      el.classList.toggle("active", i === index);
-      el.setAttribute("aria-pressed", i === index);
+    document.querySelectorAll(".filter").forEach((element, i) => {
+      element.classList.toggle("active", i === index);
+      element.setAttribute("aria-pressed", i === index);
     });
     updatePreview();
   };
-  $("filters").append(b);
+  getElement("filters").append(button);
 });
 colors.forEach((color, index) => {
-  const b = document.createElement("button");
-  b.className = "swatch" + (index === 0 ? " active" : "");
-  b.style.setProperty("--swatch", color.value);
-  b.style.setProperty("--tick", index === 6 ? "#fff" : "#69775a");
-  b.setAttribute("aria-label", color.name + " frame");
-  b.setAttribute("aria-pressed", index === 0);
-  b.onclick = () => {
+  const button = document.createElement("button");
+  button.className = "swatch" + (index === 0 ? " active" : "");
+  button.style.setProperty("--swatch", color.value);
+  button.style.setProperty("--tick", index === 6 ? "#fff" : "#69775a");
+  button.setAttribute("aria-label", color.name + " frame");
+  button.setAttribute("aria-pressed", index === 0);
+  button.onclick = () => {
     state.color = index;
-    $("colorName").textContent = color.name;
-    document.querySelectorAll(".swatch").forEach((el, i) => {
-      el.classList.toggle("active", i === index);
-      el.setAttribute("aria-pressed", i === index);
+    getElement("colorName").textContent = color.name;
+    document.querySelectorAll(".swatch").forEach((element, i) => {
+      element.classList.toggle("active", i === index);
+      element.setAttribute("aria-pressed", i === index);
     });
     updatePreview();
   };
-  $("swatches").append(b);
+  getElement("swatches").append(button);
 });
+// Customization controls keep visible selection and aria-pressed in sync.
 document.querySelectorAll(".layout").forEach(
-  (b) =>
-    (b.onclick = () => {
-      state.layout = b.dataset.layout;
-      document.querySelectorAll(".layout").forEach((el) => {
-        el.classList.toggle("active", el === b);
-        el.setAttribute("aria-pressed", el === b);
+  (button) =>
+    (button.onclick = () => {
+      state.layout = button.dataset.layout;
+      document.querySelectorAll(".layout").forEach((element) => {
+        element.classList.toggle("active", element === button);
+        element.setAttribute("aria-pressed", element === button);
       });
       const count = state.layout === "single" ? 1 : 4;
-      $("layoutCount").textContent =
+      getElement("layoutCount").textContent =
         count + " photo" + (count === 1 ? "" : "s");
-      $("captureText").textContent =
+      getElement("captureText").textContent =
         count === 1 ? "Take a photo" : "Take 4 photos";
-      $("boothNote").textContent =
+      getElement("boothNote").textContent =
         count === 1
           ? "One pose. One lovely little moment."
           : "Four poses. One lovely " +
@@ -118,61 +134,64 @@ document.querySelectorAll(".layout").forEach(
       updatePreview();
     }),
 );
-document.querySelectorAll("[data-sticker]").forEach((b) => {
-  b.setAttribute("aria-pressed", b.classList.contains("active"));
-  b.onclick = () => {
-    state.sticker = b.dataset.sticker;
-    document.querySelectorAll("[data-sticker]").forEach((el) => {
-      el.classList.toggle("active", el === b);
-      el.setAttribute("aria-pressed", el === b);
+document.querySelectorAll("[data-sticker]").forEach((button) => {
+  button.setAttribute("aria-pressed", button.classList.contains("active"));
+  button.onclick = () => {
+    state.sticker = button.dataset.sticker;
+    document.querySelectorAll("[data-sticker]").forEach((element) => {
+      element.classList.toggle("active", element === button);
+      element.setAttribute("aria-pressed", element === button);
     });
     updatePreview();
   };
 });
 ["brightness", "contrast", "caption"].forEach((id) =>
-  $(id).addEventListener("input", updatePreview),
+  getElement(id).addEventListener("input", updatePreview),
 );
-$("resetBtn").onclick = () => {
+/** Restore styling, timer, and export defaults while retaining session photos. */
+function resetCustomization() {
   document.querySelector('[data-layout="strip"]').click();
   document.querySelector(".filter").click();
   document.querySelector(".swatch").click();
   document.querySelector('[data-sticker=""]').click();
-  $("brightness").value = 100;
-  $("contrast").value = 100;
-  $("caption").value = "";
-  $("timer").value = "3";
-  $("format").value = "png";
+  getElement("brightness").value = 100;
+  getElement("contrast").value = 100;
+  getElement("caption").value = "";
+  getElement("timer").value = "3";
+  getElement("format").value = "png";
   updatePreview();
   toast("A fresh start. Your moments are still here.");
-};
+}
+getElement("resetBtn").onclick = resetCustomization;
+/** Stop all media tracks and cancel pending camera work by advancing generation. */
 function stopCamera() {
   generation++;
   if (stream) stream.getTracks().forEach((t) => t.stop());
   stream = null;
-  $("video").srcObject = null;
-  $("video").hidden = true;
-  $("cameraLabel").textContent = "● CAMERA OFF";
-  $("cameraLabel").classList.remove("on");
-  $("stopBtn").hidden = true;
+  getElement("video").srcObject = null;
+  getElement("video").hidden = true;
+  getElement("cameraLabel").textContent = "● CAMERA OFF";
+  getElement("cameraLabel").classList.remove("on");
+  getElement("stopBtn").hidden = true;
   busy = false;
-  $("captureBtn").disabled = false;
-  $("countdown").hidden = true;
+  getElement("captureBtn").disabled = false;
+  getElement("countdown").hidden = true;
   if (!uploaded) {
-    $("welcome").hidden = false;
-    $("demoArt").hidden = false;
+    getElement("welcome").hidden = false;
+    getElement("demoArt").hidden = false;
   }
 }
-const stop = document.createElement("button");
-stop.id = "stopBtn";
-stop.className = "control";
-stop.textContent = "Stop camera";
-stop.hidden = true;
-stop.onclick = () => {
+const stopButton = document.createElement("button");
+stopButton.id = "stopBtn";
+stopButton.className = "control";
+stopButton.textContent = "Stop camera";
+stopButton.hidden = true;
+stopButton.onclick = () => {
   stopCamera();
   toast("Camera off. Your photos stay in this tab.");
 };
-$("camera-controls");
-document.querySelector(".camera-controls").insertBefore(stop, $("soundBtn"));
+document.querySelector(".camera-controls").insertBefore(stopButton, getElement("soundBtn"));
+/** Request the preferred camera. Resolve true only when its preview is ready. */
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
     toast(
@@ -181,8 +200,8 @@ async function startCamera() {
     return false;
   }
   const request = ++generation;
-  $("enableBtn").disabled = true;
-  $("enableBtn").textContent = "Opening camera…";
+  getElement("enableBtn").disabled = true;
+  getElement("enableBtn").textContent = "Opening camera…";
   try {
     const next = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -199,17 +218,17 @@ async function startCamera() {
     if (stream) stream.getTracks().forEach((t) => t.stop());
     stream = next;
     uploaded = null;
-    $("uploadPreview").hidden = true;
-    $("video").srcObject = stream;
-    $("video").hidden = false;
-    $("video").classList.toggle("mirrored", state.mirror);
-    await $("video").play();
+    getElement("uploadPreview").hidden = true;
+    getElement("video").srcObject = stream;
+    getElement("video").hidden = false;
+    getElement("video").classList.toggle("mirrored", state.mirror);
+    await getElement("video").play();
     if (request !== generation) return false;
-    $("welcome").hidden = true;
-    $("demoArt").hidden = true;
-    $("cameraLabel").textContent = "● CAMERA ON";
-    $("cameraLabel").classList.add("on");
-    $("stopBtn").hidden = false;
+    getElement("welcome").hidden = true;
+    getElement("demoArt").hidden = true;
+    getElement("cameraLabel").textContent = "● CAMERA ON";
+    getElement("cameraLabel").classList.add("on");
+    getElement("stopBtn").hidden = false;
     updatePreview();
     return true;
   } catch (error) {
@@ -222,18 +241,18 @@ async function startCamera() {
     );
     return false;
   } finally {
-    $("enableBtn").disabled = false;
-    $("enableBtn").textContent = "Enable camera ↗";
+    getElement("enableBtn").disabled = false;
+    getElement("enableBtn").textContent = "Enable camera ↗";
   }
 }
-$("enableBtn").onclick = startCamera;
-$("mirrorBtn").onclick = () => {
+getElement("enableBtn").onclick = startCamera;
+getElement("mirrorBtn").onclick = () => {
   state.mirror = !state.mirror;
-  $("mirrorBtn").classList.toggle("active", state.mirror);
-  $("mirrorBtn").setAttribute("aria-pressed", state.mirror);
-  $("video").classList.toggle("mirrored", state.mirror);
+  getElement("mirrorBtn").classList.toggle("active", state.mirror);
+  getElement("mirrorBtn").setAttribute("aria-pressed", state.mirror);
+  getElement("video").classList.toggle("mirrored", state.mirror);
 };
-$("switchBtn").onclick = async () => {
+getElement("switchBtn").onclick = async () => {
   if (busy) return;
   if (!stream) {
     toast("Enable your camera first.");
@@ -243,54 +262,60 @@ $("switchBtn").onclick = async () => {
   stopCamera();
   await startCamera();
 };
-$("soundBtn").onclick = () => {
+getElement("soundBtn").onclick = () => {
   state.sound = !state.sound;
-  $("soundBtn").classList.toggle("active", state.sound);
-  $("soundBtn").setAttribute("aria-pressed", state.sound);
+  getElement("soundBtn").classList.toggle("active", state.sound);
+  getElement("soundBtn").setAttribute("aria-pressed", state.sound);
   toast(state.sound ? "Shutter sound on." : "Shutter sound off.");
 };
+/** Play a short synthesized shutter tone when sound is enabled. */
 function shutterSound() {
   if (!state.sound) return;
   try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AC(),
-      osc = ctx.createOscillator(),
-      gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 650;
-    gain.gain.setValueAtTime(0.07, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.1);
-    osc.onended = () => ctx.close();
-  } catch {}
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const context = new AudioContextClass(),
+      oscillator = context.createOscillator(),
+      gain = context.createGain();
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.frequency.value = 650;
+    gain.gain.setValueAtTime(0.07, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.09);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.1);
+    oscillator.onended = () => context.close();
+  } catch {
+    // Audio is optional; unavailable audio must not prevent photo capture.
+  }
 }
-function drawCover(ctx, image, x, y, w, h) {
-  const iw = image.videoWidth || image.naturalWidth || image.width,
-    ih = image.videoHeight || image.naturalHeight || image.height;
-  const scale = Math.max(w / iw, h / ih);
-  ctx.drawImage(
+/** Scale and center an image to fill a destination rectangle, like object-fit: cover. */
+function drawCover(context, image, x, y, width, height) {
+  const imageWidth = image.videoWidth || image.naturalWidth || image.width,
+    imageHeight = image.videoHeight || image.naturalHeight || image.height;
+  const scale = Math.max(width / imageWidth, height / imageHeight);
+  context.drawImage(
     image,
-    (w - iw * scale) / 2 + x,
-    (h - ih * scale) / 2 + y,
-    iw * scale,
-    ih * scale,
+    (width - imageWidth * scale) / 2 + x,
+    (height - imageHeight * scale) / 2 + y,
+    imageWidth * scale,
+    imageHeight * scale,
   );
 }
+/** Copy the current video frame into a 1000 × 750 canvas, applying mirror only. */
 function snapshot() {
-  const c = document.createElement("canvas");
-  c.width = 1000;
-  c.height = 750;
-  const ctx = c.getContext("2d");
+  const canvas = document.createElement("canvas");
+  canvas.width = 1000;
+  canvas.height = 750;
+  const context = canvas.getContext("2d");
   if (state.mirror) {
-    ctx.translate(c.width, 0);
-    ctx.scale(-1, 1);
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
   }
-  drawCover(ctx, $("video"), 0, 0, c.width, c.height);
-  return c;
+  drawCover(context, getElement("video"), 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
-const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Capture one or four raw frames after countdowns, or reuse the imported preview. */
 async function capture() {
   if (busy) return;
   if (!stream && !uploaded) {
@@ -301,67 +326,69 @@ async function capture() {
     addMoment([uploaded]);
     return;
   }
-  if (!$("video").videoWidth) {
+  if (!getElement("video").videoWidth) {
     toast("Camera is warming up. Try again in a moment.");
     return;
   }
   busy = true;
-  $("captureBtn").disabled = true;
+  getElement("captureBtn").disabled = true;
   const token = generation,
     photos = [],
     total = state.layout === "single" ? 1 : 4,
-    delay = Number($("timer").value);
+    delay = Number(getElement("timer").value);
   try {
     for (let shot = 0; shot < total; shot++) {
       for (let n = delay; n > 0; n--) {
         if (token !== generation) return;
-        $("countdown").textContent = n;
-        $("countdown").hidden = false;
-        $("captureText").textContent = `Pose ${shot + 1} of ${total}`;
+        getElement("countdown").textContent = n;
+        getElement("countdown").hidden = false;
+        getElement("captureText").textContent = `Pose ${shot + 1} of ${total}`;
         await pause(1000);
       }
       if (token !== generation) return;
-      $("countdown").hidden = true;
+      getElement("countdown").hidden = true;
       photos.push(snapshot());
       shutterSound();
-      $("flash").classList.remove("flash");
-      void $("flash").offsetWidth;
-      $("flash").classList.add("flash");
+      getElement("flash").classList.remove("flash");
+      // Force layout so removing and re-adding the class restarts the flash animation.
+      void getElement("flash").offsetWidth;
+      getElement("flash").classList.add("flash");
       if (shot < total - 1) await pause(650);
     }
     addMoment(photos);
   } finally {
     busy = false;
-    $("captureBtn").disabled = false;
-    $("countdown").hidden = true;
-    $("captureText").textContent =
+    getElement("captureBtn").disabled = false;
+    getElement("countdown").hidden = true;
+    getElement("captureText").textContent =
       state.layout === "single" ? "Take a photo" : "Take 4 photos";
   }
 }
-$("captureBtn").onclick = capture;
-document.addEventListener("keydown", (e) => {
+getElement("captureBtn").onclick = capture;
+document.addEventListener("keydown", (event) => {
   if (
-    e.code === "Space" &&
+    event.code === "Space" &&
     !["INPUT", "SELECT", "TEXTAREA", "BUTTON", "SUMMARY"].includes(
       document.activeElement.tagName,
     ) &&
     !document.querySelector("dialog[open]")
   ) {
-    e.preventDefault();
+    event.preventDefault();
     capture();
   }
 });
-$("uploadBtn").onclick = () => {
-  if (!busy) $("fileInput").click();
+getElement("uploadBtn").onclick = () => {
+  if (!busy) getElement("fileInput").click();
 };
-$("fileInput").onchange = async (e) => {
-  const files = Array.from(e.target.files);
+/** Validate and decode up to four local files, downscale them, then create a moment. */
+async function importPhotos(event) {
+  const files = Array.from(event.target.files);
   if (!files.length) return;
   const images = [];
-  for (const file of files.slice(0, 4)) {
+  for (const file of files.slice(0, MAX_IMPORT_FILES)) {
     if (
-      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
-      file.size > 20 * 1024 * 1024
+      !SUPPORTED_IMAGE_TYPES.includes(file.type) ||
+      file.size > MAX_IMPORT_BYTES
     ) {
       toast("Choose a JPG, PNG, or WebP under 20 MB.");
       continue;
@@ -371,27 +398,27 @@ $("fileInput").onchange = async (e) => {
       const image = new Image();
       image.src = url;
       await image.decode();
-      const c = document.createElement("canvas");
-      const ratio = Math.min(1, 1600 / Math.max(image.width, image.height));
-      c.width = Math.round(image.width * ratio);
-      c.height = Math.round(image.height * ratio);
-      c.getContext("2d").drawImage(image, 0, 0, c.width, c.height);
-      images.push(c);
+      const canvas = document.createElement("canvas");
+      const ratio = Math.min(1, MAX_IMPORT_DIMENSION / Math.max(image.width, image.height));
+      canvas.width = Math.round(image.width * ratio);
+      canvas.height = Math.round(image.height * ratio);
+      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      images.push(canvas);
     } catch {
       toast("That image could not be opened. Try another photo.");
     } finally {
       URL.revokeObjectURL(url);
     }
   }
-  e.target.value = "";
+  event.target.value = "";
   if (images.length) {
     stopCamera();
     uploaded = images[0];
-    $("uploadPreview").src = uploaded.toDataURL("image/jpeg", 0.9);
-    $("uploadPreview").hidden = false;
-    $("welcome").hidden = true;
-    $("demoArt").hidden = true;
-    $("cameraLabel").textContent = "● LOCAL PHOTO";
+    getElement("uploadPreview").src = uploaded.toDataURL("image/jpeg", 0.9);
+    getElement("uploadPreview").hidden = false;
+    getElement("welcome").hidden = true;
+    getElement("demoArt").hidden = true;
+    getElement("cameraLabel").textContent = "● LOCAL PHOTO";
     updatePreview();
     addMoment(images);
     if (images.length < 4 && state.layout !== "single")
@@ -399,65 +426,71 @@ $("fileInput").onchange = async (e) => {
         "Photo added. Empty slots repeat your photos. Choose Solo shot for one.",
       );
   }
-};
+}
+getElement("fileInput").onchange = importPhotos;
+/** Redraw a moment using current global settings; resize the supplied output canvas. */
 function renderMoment(moment, canvas) {
   const count = state.layout === "single" ? 1 : 4,
     columns = state.layout === "grid" ? 2 : 1,
     rows = count / columns,
-    pad = 36,
+    padding = 36,
     gap = 22,
-    w = state.layout === "strip" ? 600 : state.layout === "grid" ? 1000 : 850,
-    photoW = (w - pad * 2 - gap * (columns - 1)) / columns,
-    photoH = photoW * 0.75,
+    width = state.layout === "strip" ? 600 : state.layout === "grid" ? 1000 : 850,
+    photoWidth = (width - padding * 2 - gap * (columns - 1)) / columns,
+    photoHeight = photoWidth * 0.75,
     footer = 100;
-  canvas.width = w;
-  canvas.height = pad * 2 + rows * photoH + gap * (rows - 1) + footer;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = colors[state.color].value;
-  ctx.fillRect(0, 0, w, canvas.height);
+  canvas.width = width;
+  canvas.height = padding * 2 + rows * photoHeight + gap * (rows - 1) + footer;
+  const context = canvas.getContext("2d");
+  context.fillStyle = colors[state.color].value;
+  context.fillRect(0, 0, width, canvas.height);
   for (let i = 0; i < count; i++) {
-    ctx.save();
-    const x = pad + (i % columns) * (photoW + gap),
-      y = pad + Math.floor(i / columns) * (photoH + gap);
-    ctx.beginPath();
-    ctx.rect(x, y, photoW, photoH);
-    ctx.clip();
-    ctx.filter = filterValue();
+    context.save();
+    const x = padding + (i % columns) * (photoWidth + gap),
+      y = padding + Math.floor(i / columns) * (photoHeight + gap);
+    context.beginPath();
+    context.rect(x, y, photoWidth, photoHeight);
+    // Crop overflow and isolate the filter so the frame and text remain unfiltered.
+    context.clip();
+    context.filter = filterValue();
     drawCover(
-      ctx,
+      context,
+      // Cycle through imported photos when fewer images than slots are available.
       moment.photos[i % moment.photos.length],
       x,
       y,
-      photoW,
-      photoH,
+      photoWidth,
+      photoHeight,
     );
-    ctx.restore();
+    context.restore();
   }
   const dark = state.color === 6;
-  ctx.fillStyle = dark ? "#faf7ed" : "#4d6041";
-  ctx.textAlign = "center";
-  ctx.font = `italic ${Math.round(w / 26)}px Georgia`;
-  const caption = $("caption").value.trim() || "a little moment, a lot of joy";
-  let fontSize = Math.round(w / 26);
-  while (ctx.measureText(caption).width > w - pad * 3 && fontSize > 12) {
-    ctx.font = `italic ${--fontSize}px Georgia`;
+  context.fillStyle = dark ? "#faf7ed" : "#4d6041";
+  context.textAlign = "center";
+  context.font = `italic ${Math.round(width / 26)}px Georgia`;
+  const caption = getElement("caption").value.trim() || "a little moment, a lot of joy";
+  let fontSize = Math.round(width / 26);
+  // Shrink longer captions to fit the footer without changing the stored text.
+  while (context.measureText(caption).width > width - padding * 3 && fontSize > 12) {
+    context.font = `italic ${--fontSize}px Georgia`;
   }
-  ctx.fillText(caption, w / 2, canvas.height - 65);
-  ctx.font = `${Math.round(w / 65)}px Arial`;
-  ctx.fillText("LITTLE MOMENTS  ·  " + moment.date, w / 2, canvas.height - 31);
+  context.fillText(caption, width / 2, canvas.height - 65);
+  context.font = `${Math.round(width / 65)}px Arial`;
+  context.fillText("LITTLE MOMENTS  ·  " + moment.date, width / 2, canvas.height - 31);
   if (state.sticker) {
-    ctx.font = `${w / 12}px Georgia`;
-    ctx.fillStyle =
+    context.font = `${width / 12}px Georgia`;
+    context.fillStyle =
       state.sticker === "♥" ? "#cc7e69" : dark ? "#e1cc90" : "#8a966c";
-    ctx.save();
-    ctx.translate(w - pad - 8, canvas.height - footer - 12);
-    ctx.rotate(0.15);
-    ctx.fillText(state.sticker, 0, 0);
-    ctx.restore();
+    context.save();
+    context.translate(width - padding - 8, canvas.height - footer - 12);
+    context.rotate(0.15);
+    context.fillText(state.sticker, 0, 0);
+    context.restore();
   }
 }
+/** Store raw photo canvases and a thumbnail, refresh the gallery, and open the result. */
 function addMoment(photos) {
-  if (moments.length >= 12) {
+  if (moments.length >= MAX_MOMENTS) {
     toast("Session full. Download or remove a moment to make room.");
     return;
   }
@@ -477,17 +510,19 @@ function addMoment(photos) {
   renderGallery();
   openMoment(moment);
 }
+/** Select a stored moment and display it using the current customization controls. */
 function openMoment(moment) {
   selectedMoment = moment;
-  renderMoment(moment, $("resultCanvas"));
-  $("resultDialog").showModal();
+  renderMoment(moment, getElement("resultCanvas"));
+  getElement("resultDialog").showModal();
 }
+/** Rebuild gallery cards and deletion/edit handlers from the session collection. */
 function renderGallery() {
-  $("momentCount").textContent = moments.length;
-  $("gallery").replaceChildren();
+  getElement("momentCount").textContent = moments.length;
+  getElement("gallery").replaceChildren();
   if (!moments.length) {
-    const el = document.createElement("div");
-    el.className = "empty-gallery";
+    const element = document.createElement("div");
+    element.className = "empty-gallery";
     const icon = document.createElement("span");
     icon.className = "empty-icon";
     icon.textContent = "▧";
@@ -495,8 +530,8 @@ function renderGallery() {
     p.textContent = "Your next favorite memory goes here.";
     const hint = document.createElement("span");
     hint.textContent = "Take some photos to get started ✧";
-    el.append(icon, p, hint);
-    $("gallery").append(el);
+    element.append(icon, p, hint);
+    getElement("gallery").append(element);
     return;
   }
   moments.forEach((moment, index) => {
@@ -520,14 +555,15 @@ function renderGallery() {
     };
     actions.append(edit, remove);
     card.append(image, actions);
-    $("gallery").append(card);
+    getElement("gallery").append(card);
   });
 }
-$("downloadBtn").onclick = () => {
+/** Render the latest settings and request a PNG or JPEG browser download. */
+function downloadMoment() {
   if (!selectedMoment) return;
-  const canvas = $("resultCanvas");
+  const canvas = getElement("resultCanvas");
   renderMoment(selectedMoment, canvas);
-  const format = $("format").value;
+  const format = getElement("format").value;
   canvas.toBlob(
     (blob) => {
       if (!blob) {
@@ -535,18 +571,19 @@ $("downloadBtn").onclick = () => {
         return;
       }
       const url = URL.createObjectURL(blob),
-        a = document.createElement("a");
-      a.href = url;
-      a.download = `little-moments-${Date.now()}.${format === "jpeg" ? "jpg" : "png"}`;
-      a.click();
+        link = document.createElement("a");
+      link.href = url;
+      link.download = `little-moments-${Date.now()}.${format === "jpeg" ? "jpg" : "png"}`;
+      link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       toast("Saved to your device. Keep the good times.");
     },
     "image/" + format,
     0.95,
   );
-};
-$("clearBtn").onclick = () => {
+}
+getElement("downloadBtn").onclick = downloadMoment;
+getElement("clearBtn").onclick = () => {
   if (!moments.length && !uploaded && !stream) {
     toast("Your session is already empty.");
     return;
@@ -555,68 +592,72 @@ $("clearBtn").onclick = () => {
     "Clear this session?",
     '<p>This turns off your camera and removes all photos from this tab. Download your favorites first. Files already downloaded stay on your device.</p><button id="confirmClear" class="primary">Clear photos & stop camera</button>',
   );
-  $("confirmClear").onclick = () => {
+  getElement("confirmClear").onclick = () => {
     stopCamera();
     moments = [];
     uploaded = null;
     selectedMoment = null;
-    $("uploadPreview").removeAttribute("src");
-    $("uploadPreview").hidden = true;
-    $("welcome").hidden = false;
-    $("demoArt").hidden = false;
+    getElement("uploadPreview").removeAttribute("src");
+    getElement("uploadPreview").hidden = true;
+    getElement("welcome").hidden = false;
+    getElement("demoArt").hidden = false;
     renderGallery();
-    $("infoDialog").close();
+    getElement("infoDialog").close();
     toast("Session cleared. A clean slate.");
   };
 };
+/** Open an information dialog. Content must be trusted, application-owned HTML. */
 function showInfo(title, content) {
-  $("dialogContent").innerHTML = "<h2>" + title + "</h2>" + content;
-  $("infoDialog").showModal();
+  getElement("dialogContent").innerHTML = "<h2>" + title + "</h2>" + content;
+  getElement("infoDialog").showModal();
 }
-$("privacyBtn").onclick = () =>
+getElement("privacyBtn").onclick = () =>
   showInfo(
     "Your memories. Your business.",
     "<p>Your camera feed and photos are processed entirely on your device. This booth has no backend, analytics, cookies, or photo uploads. It makes no network requests for photo processing.</p><p>Photos are held in this tab’s memory and disappear when you clear the session or close the tab. Downloads stay on your device. Imported image metadata is not copied into exported photos.</p><p>Camera access only starts when you enable it. Use <strong>Stop camera</strong> to revoke this session’s access. Hosting providers still receive normal page requests when you visit.</p>",
   );
-$("howBtn").onclick = () =>
+getElement("howBtn").onclick = () =>
   showInfo(
     "A moment in three little steps.",
     "<ol><li><strong>Get ready.</strong> Enable your camera, or use the upload button to choose up to four local photos.</li><li><strong>Make it yours.</strong> Pick a layout, filter, frame, caption, and sticker. Set your timer and strike a pose. Press Space to capture.</li><li><strong>Keep the magic.</strong> Preview your moment and download it as PNG or JPEG. Reopen any moment to change its style.</li></ol><p>Stay in this tab until you save your favorites. Your session is temporary.</p>",
   );
 document
   .querySelectorAll(".dialog-close")
-  .forEach((b) => (b.onclick = () => b.closest("dialog").close()));
-document.querySelectorAll("dialog").forEach((d) =>
-  d.addEventListener("click", (e) => {
-    if (e.target === d) {
-      const r = d.getBoundingClientRect();
+  .forEach((button) => (button.onclick = () => button.closest("dialog").close()));
+document.querySelectorAll("dialog").forEach((dialog) =>
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) {
+      const bounds = dialog.getBoundingClientRect();
       if (
-        e.clientX < r.left ||
-        e.clientX > r.right ||
-        e.clientY < r.top ||
-        e.clientY > r.bottom
+        event.clientX < bounds.left ||
+        event.clientX > bounds.right ||
+        event.clientY < bounds.top ||
+        event.clientY > bounds.bottom
       )
-        d.close();
+        dialog.close();
     }
   }),
 );
-$("resultDialog").addEventListener("close", () => {
+getElement("resultDialog").addEventListener("close", () => {
   if (selectedMoment) {
-    selectedMoment.thumbnail = $("resultCanvas").toDataURL("image/jpeg", 0.85);
+    selectedMoment.thumbnail = getElement("resultCanvas").toDataURL("image/jpeg", 0.85);
     renderGallery();
   }
   selectedMoment = null;
 });
-$("fullscreenBtn").onclick = async () => {
+/** Enter or exit viewfinder fullscreen, reporting unsupported or failed requests. */
+async function toggleFullscreen() {
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
-    else if ($("viewfinder").requestFullscreen)
-      await $("viewfinder").requestFullscreen();
+    else if (getElement("viewfinder").requestFullscreen)
+      await getElement("viewfinder").requestFullscreen();
     else toast("Fullscreen is not supported by this browser.");
   } catch {
     toast("Fullscreen is not available.");
   }
-};
+}
+getElement("fullscreenBtn").onclick = toggleFullscreen;
+// Release hardware when leaving the page or moving this tab into the background.
 window.addEventListener("pagehide", stopCamera);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && stream) stopCamera();
