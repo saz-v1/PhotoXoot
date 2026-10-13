@@ -404,6 +404,15 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
                 );
               }
               await page.locator('[data-panel="booth"]').click();
+              const viewfinder = await page
+                .locator("#viewfinder")
+                .boundingBox();
+              assert.ok(
+                viewfinder.height >= 100,
+                "Camera preview must have usable height",
+              );
+              if (!(await page.evaluate(() => uploaded)))
+                assert.ok(await page.locator("#enableBtn").isVisible());
               await upload(page);
               for (const section of [
                 "design",

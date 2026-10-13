@@ -76,6 +76,8 @@ Element IDs are the contract between HTML and `getElement()` in JavaScript. Rena
 | Width ≤ 750 px and height ≤ 650 px                      | More compact spacing and controls for short portrait screens.                                                                 |
 | Height ≤ 500 px and width ≤ 1000 px                     | Landscape editor places preview beside tools; camera controls use a compact row.                                              |
 
+Phone `main` explicitly resets desktop auto margins and fills its grid row so the flexible camera preview cannot collapse to zero height. Regression tests assert that the preview has usable height, not just that controls stay onscreen.
+
 The `phoneLayout` media query in JavaScript must match the phone-mode CSS condition. `updateViewportSize()` sets `--app-height` and `--viewport-top` from `visualViewport`; a height reduction over 120 px enables `keyboard-open`. This is a keyboard heuristic, not a keyboard API.
 On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panels. Their DOM nodes and settings remain in place. On larger screens, the panels appear together. Dynamic viewport units and `env(safe-area-inset-*)` keep controls clear of browser chrome and device cutouts. The gallery uses `:has()`, so older browsers may differ in presentation.
 

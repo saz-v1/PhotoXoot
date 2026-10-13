@@ -38,6 +38,9 @@
     min-height: 40px;
   }
   main {
+    /* Override desktop auto margins so the grid row stretches the camera area. */
+    margin: 0;
+    height: 100%;
     width: 100%;
     min-height: 0;
     overflow: hidden;
