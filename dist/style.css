@@ -951,3 +951,78 @@ dialog li {
 .crop-position {
   margin-top: 12px;
 }
+
+/* Tool pages avoid long forms while keeping every control available. */
+.style-tabs {
+  display: none;
+}
+.editor-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 16px 0;
+}
+.editor-tabs button,
+.style-tabs button,
+.gallery-pager button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.editor-tabs button[aria-pressed="true"],
+.style-tabs button[aria-pressed="true"],
+.editor-sticker-choices button[aria-pressed="true"] {
+  background: #f6e0e9;
+  border-color: #ba839b;
+}
+.editor-pane[data-editor-section="text"] {
+  display: grid;
+  gap: 18px;
+}
+.editor-sticker-choices {
+  margin: 12px 0;
+}
+.photo-sliders {
+  display: grid;
+  gap: 6px;
+}
+.editor-footer select {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  color: var(--ink);
+  padding: 6px;
+  margin-right: auto;
+}
+.gallery-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+/* Bundled script fonts keep captions consistent without third-party requests. */
+@font-face {
+  font-family: "Allura";
+  src: url("fonts/Allura-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pacifico";
+  src: url("fonts/Pacifico-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Dancing Script";
+  src: url("fonts/DancingScript.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vladimir Local";
+  src: local("Vladimir Script"), local("VladimirScript");
+}

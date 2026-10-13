@@ -69,6 +69,10 @@ let generation = 0;
 let selectedMoment = null;
 let toastTimer;
 let selectedPhotoIndex = 0;
+let galleryPage = 0;
+const phoneLayout = window.matchMedia(
+  "(max-width: 750px), (max-height: 500px) and (max-width: 1000px)",
+);
 /** Show a temporary status message, replacing any previous toast. */
 function toast(message) {
   getElement("toast").textContent = message;
@@ -373,21 +377,38 @@ function prepareShutterSound() {
     /* Audio remains optional. */
   }
 }
-/** Play a short tone on the already activated audio context. */
+/** Mechanical shutter: a short spring snap followed by a softer closing click. */
 function shutterSound() {
   if (!state.sound || !shutterAudio || shutterAudio.state !== "running") return;
   const context = shutterAudio;
-  const oscillator = context.createOscillator();
+  const time = context.currentTime;
+  const noise = context.createBuffer(
+    1,
+    Math.ceil(context.sampleRate * 0.16),
+    context.sampleRate,
+  );
+  const samples = noise.getChannelData(0);
+  for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
   const gain = context.createGain();
-  oscillator.connect(gain);
+  source.buffer = noise;
+  filter.type = "bandpass";
+  filter.frequency.value = 1800;
+  filter.Q.value = 0.65;
+  source.connect(filter);
+  filter.connect(gain);
   gain.connect(context.destination);
-  oscillator.frequency.value = 650;
-  gain.gain.setValueAtTime(0.07, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.09);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.1);
-  oscillator.onended = () => {
-    oscillator.disconnect();
+  gain.gain.setValueAtTime(0.001, time);
+  gain.gain.exponentialRampToValueAtTime(0.5, time + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.012, time + 0.035);
+  gain.gain.exponentialRampToValueAtTime(0.24, time + 0.054);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+  source.start(time);
+  source.stop(time + 0.16);
+  source.onended = () => {
+    source.disconnect();
+    filter.disconnect();
     gain.disconnect();
   };
 }
@@ -574,6 +595,9 @@ function createMomentSettings() {
     layout: state.layout,
     filter: state.filter,
     frameColor: colors[state.color].value,
+    pattern: "solid",
+    patternColor: "#d998b1",
+    patternScale: 40,
     sticker: state.sticker,
     stickerSize: 1,
     stickerPosition: "bottom-right",
@@ -587,6 +611,62 @@ function createMomentSettings() {
     format: getElement("format").value,
   };
 }
+
+/** Draw pattern beneath photo slots, leaving the caption footer clear for legibility. */
+function drawFramePattern(context, settings, width, height) {
+  const { pattern, patternColor, patternScale: step } = settings;
+  if (!pattern || pattern === "solid") return;
+  context.save();
+  context.beginPath();
+  context.rect(0, 0, width, height);
+  context.clip();
+  context.fillStyle = patternColor;
+  context.strokeStyle = patternColor;
+  if (pattern === "stripes") {
+    context.lineWidth = step / 3;
+    for (let x = -height; x < width; x += step) {
+      context.beginPath();
+      context.moveTo(x, 0);
+      context.lineTo(x + height, height);
+      context.stroke();
+    }
+  } else {
+    for (let y = 0; y < height; y += step) {
+      for (let x = 0; x < width; x += step) {
+        if (pattern === "checks") {
+          context.globalAlpha =
+            (Math.floor(x / step) + Math.floor(y / step)) % 2 ? 0.22 : 0.55;
+          context.fillRect(x, y, step, step);
+        } else if (pattern === "dots") {
+          context.beginPath();
+          context.arc(x + step / 2, y + step / 2, step / 7, 0, Math.PI * 2);
+          context.fill();
+        } else if (pattern === "hearts") {
+          context.save();
+          context.translate(x + step / 2, y + step / 2);
+          context.scale(step / 40, step / 40);
+          context.beginPath();
+          context.moveTo(0, 7);
+          context.bezierCurveTo(-17, -3, -6, -14, 0, -5);
+          context.bezierCurveTo(6, -14, 17, -3, 0, 7);
+          context.fill();
+          context.restore();
+        }
+      }
+    }
+  }
+  context.restore();
+}
+
+// Load local font assets before exporting so a fast download never captures fallback text.
+const captionFontsReady = Promise.all([
+  document.fonts.load("24px Allura"),
+  document.fonts.load('24px "Dancing Script"'),
+  document.fonts.load("24px Pacifico"),
+  document.fonts.load('24px "Vladimir Local"').catch(() => []),
+])
+  .catch(() => [])
+  .then(() => refreshEditorPreview());
 
 /** Get readable footer text against any custom frame color. */
 function frameTextColor(hexColor) {
@@ -624,6 +704,7 @@ function renderMoment(moment, canvas) {
   const context = canvas.getContext("2d");
   context.fillStyle = settings.frameColor;
   context.fillRect(0, 0, width, canvas.height);
+  drawFramePattern(context, settings, width, photoBottom + padding);
   for (let slot = 0; slot < count; slot++) {
     const photoIndex = slot % moment.photos.length;
     const edit = moment.photoEdits[photoIndex];
@@ -700,6 +781,9 @@ const editorFields = {
   editLayout: ["layout", "string"],
   editFilter: ["filter", "number"],
   editFrameColor: ["frameColor", "string"],
+  editPattern: ["pattern", "string"],
+  editPatternColor: ["patternColor", "string"],
+  editPatternScale: ["patternScale", "number"],
   editCaption: ["caption", "string"],
   editCaptionFont: ["captionFont", "string"],
   editSticker: ["sticker", "string"],
@@ -716,6 +800,15 @@ const editorFields = {
 /** Render edits immediately; thumbnail caching happens when the editor closes. */
 let editorRenderFrame = null;
 function refreshEditorPreview() {
+  if (selectedMoment)
+    document
+      .querySelectorAll("[data-editor-sticker]")
+      .forEach((button) =>
+        button.setAttribute(
+          "aria-pressed",
+          button.dataset.editorSticker === selectedMoment.settings.sticker,
+        ),
+      );
   if (editorRenderFrame !== null) return;
   editorRenderFrame = requestAnimationFrame(() => {
     editorRenderFrame = null;
@@ -874,6 +967,7 @@ function addMoment(photos, settings = createMomentSettings()) {
   };
   moment.initialSettings = { ...moment.settings };
   moments.push(moment);
+  galleryPage = Math.floor((moments.length - 1) / 2);
   const canvas = document.createElement("canvas");
   renderMoment(moment, canvas);
   moment.thumbnail = canvas.toDataURL("image/jpeg", 0.85);
@@ -884,6 +978,7 @@ function addMoment(photos, settings = createMomentSettings()) {
 function openMoment(moment) {
   selectedMoment = moment;
   selectedPhotoIndex = 0;
+  selectEditorTab("design");
   syncEditor();
   renderMoment(moment, getElement("resultCanvas"));
   getElement("resultDialog").showModal();
@@ -895,6 +990,7 @@ function renderGallery() {
   getElement("momentCount").textContent = moments.length;
   getElement("gallery").replaceChildren();
   if (!moments.length) {
+    getElement("galleryPager").hidden = true;
     const element = document.createElement("div");
     element.className = "empty-gallery";
     const description = document.createElement("p");
@@ -905,32 +1001,44 @@ function renderGallery() {
     getElement("gallery").append(element);
     return;
   }
-  moments.forEach((moment, index) => {
-    const card = document.createElement("div");
-    card.className = "moment";
-    const image = document.createElement("img");
-    image.src = moment.thumbnail;
-    image.alt = `Photo moment ${index + 1}`;
-    const actions = document.createElement("div");
-    actions.className = "moment-actions";
-    const edit = document.createElement("button");
-    edit.textContent = "Edit photo";
-    edit.onclick = () => openMoment(moment);
-    const remove = document.createElement("button");
-    remove.textContent = "×";
-    remove.setAttribute("aria-label", `Delete moment ${index + 1}`);
-    remove.onclick = () => {
-      moments = moments.filter((m) => m !== moment);
-      renderGallery();
-      toast("Moment removed from this session.");
-    };
-    actions.append(edit, remove);
-    card.append(image, actions);
-    getElement("gallery").append(card);
-  });
+  const pageSize = phoneLayout.matches ? 2 : Math.max(1, moments.length);
+  const pages = Math.max(1, Math.ceil(moments.length / pageSize));
+  galleryPage = Math.min(galleryPage, pages - 1);
+  getElement("galleryPageLabel").textContent = `${galleryPage + 1} / ${pages}`;
+  getElement("previousGalleryPage").disabled = galleryPage === 0;
+  getElement("nextGalleryPage").disabled = galleryPage >= pages - 1;
+  getElement("galleryPager").hidden =
+    !phoneLayout.matches || moments.length <= pageSize;
+  moments
+    .slice(galleryPage * pageSize, (galleryPage + 1) * pageSize)
+    .forEach((moment, offset) => {
+      const index = galleryPage * pageSize + offset;
+      const card = document.createElement("div");
+      card.className = "moment";
+      const image = document.createElement("img");
+      image.src = moment.thumbnail;
+      image.alt = `Photo moment ${index + 1}`;
+      const actions = document.createElement("div");
+      actions.className = "moment-actions";
+      const edit = document.createElement("button");
+      edit.textContent = "Edit photo";
+      edit.onclick = () => openMoment(moment);
+      const remove = document.createElement("button");
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", `Delete moment ${index + 1}`);
+      remove.onclick = () => {
+        moments = moments.filter((m) => m !== moment);
+        renderGallery();
+        toast("Moment removed from this session.");
+      };
+      actions.append(edit, remove);
+      card.append(image, actions);
+      getElement("gallery").append(card);
+    });
 }
 /** Render the latest settings and request a PNG or JPEG browser download. */
-function downloadMoment() {
+async function downloadMoment() {
+  await captionFontsReady;
   if (!selectedMoment) return;
   const canvas = getElement("resultCanvas");
   renderMoment(selectedMoment, canvas);
@@ -968,6 +1076,7 @@ getElement("clearBtn").onclick = () => {
   getElement("confirmClear").onclick = () => {
     stopCamera();
     moments = [];
+    galleryPage = 0;
     uploaded = null;
     selectedMoment = null;
     updateSourceView();
@@ -990,7 +1099,7 @@ function showInfo(title, content) {
 getElement("privacyBtn").onclick = () =>
   showInfo(
     "Privacy",
-    "<p>Your camera feed and photos are processed entirely on your device. This booth has no backend, analytics, cookies, or photo uploads. It makes no network requests for photo processing.</p><p>Photos are held in this tab’s memory and disappear when you clear the session or close the tab. Downloads stay on your device. Imported image metadata is not copied into exported photos.</p><p>Camera access only starts when you enable it. Use <strong>Stop camera</strong> to revoke this session’s access. Hosting providers still receive normal page requests when you visit.</p>",
+    "<p>Your photos are processed on this device. No photo uploads, tracking, or cookies.</p><p>Photos disappear when you clear or close this tab. Download them to keep them. Exports do not copy imported metadata.</p><p>Camera access starts with your permission. Stop camera ends the stream. GitHub receives normal website requests.</p>",
   );
 getElement("howBtn").onclick = () =>
   showInfo(
@@ -1063,3 +1172,80 @@ for (const [id, property] of [
   });
 }
 updateSourceView();
+
+function selectEditorTab(tab) {
+  document
+    .querySelectorAll("[data-editor-tab]")
+    .forEach((button) =>
+      button.setAttribute("aria-pressed", button.dataset.editorTab === tab),
+    );
+  document.querySelectorAll("[data-editor-section]").forEach((section) => {
+    section.hidden = section.dataset.editorSection !== tab;
+  });
+}
+document.querySelectorAll("[data-editor-tab]").forEach((button) => {
+  button.onclick = () => selectEditorTab(button.dataset.editorTab);
+});
+document.querySelectorAll("button[data-style-tab]").forEach((button) => {
+  button.onclick = () => {
+    document.body.dataset.styleTab = button.dataset.styleTab;
+    document
+      .querySelectorAll("button[data-style-tab]")
+      .forEach((other) => other.setAttribute("aria-pressed", other === button));
+  };
+});
+function updatePhoneLayout() {
+  if (phoneLayout.matches)
+    document.querySelectorAll("#customizePanel details").forEach((details) => {
+      details.open = true;
+    });
+  renderGallery();
+}
+phoneLayout.addEventListener("change", updatePhoneLayout);
+getElement("previousGalleryPage").onclick = () => {
+  galleryPage = Math.max(0, galleryPage - 1);
+  renderGallery();
+};
+getElement("nextGalleryPage").onclick = () => {
+  galleryPage++;
+  renderGallery();
+};
+PhotoStickers.choices.forEach((sticker) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.setAttribute("aria-label", sticker.name);
+  button.dataset.editorSticker = sticker.id;
+  if (sticker.id) {
+    const image = document.createElement("img");
+    image.src = PhotoStickers.thumbnail(sticker.id);
+    image.alt = "";
+    button.append(image);
+  } else button.textContent = "None";
+  button.onclick = () => {
+    if (!selectedMoment) return;
+    getElement("editSticker").value = sticker.id;
+    getElement("editSticker").dispatchEvent(
+      new Event("change", { bubbles: true }),
+    );
+  };
+  getElement("editorStickerChoices").append(button);
+});
+/** Fit the actual visible viewport, including Safari's bars and software keyboard. */
+function updateViewportSize() {
+  const viewport = window.visualViewport;
+  const height = viewport ? viewport.height : window.innerHeight;
+  document.documentElement.style.setProperty("--app-height", `${height}px`);
+  document.documentElement.style.setProperty(
+    "--viewport-top",
+    `${viewport?.offsetTop || 0}px`,
+  );
+  document.body.classList.toggle(
+    "keyboard-open",
+    window.innerHeight - height > 120,
+  );
+}
+window.visualViewport?.addEventListener("resize", updateViewportSize);
+window.visualViewport?.addEventListener("scroll", updateViewportSize);
+window.addEventListener("resize", updateViewportSize);
+updateViewportSize();
+updatePhoneLayout();

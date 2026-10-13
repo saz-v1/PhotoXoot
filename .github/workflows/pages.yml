@@ -27,7 +27,8 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
       - name: Check JavaScript syntax
-        run: node --check dist/app.js
+        run: |
+          for file in dist/*.js; do node --check "$file"; done
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static website

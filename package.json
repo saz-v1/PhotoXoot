@@ -1,0 +1,12 @@
+{
+  "name": "photoxoot",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "format:check": "prettier --check dist README.md tests package.json"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1",
+    "prettier": "3.9.10"
+  }
+}

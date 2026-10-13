@@ -29,7 +29,7 @@ This setup follows [GitHub's custom Pages workflow documentation](https://docs.g
 ## Project structure
 
 ```text
-little-moments/       # Existing workspace folder; the app is named PhotoXoot
+PhotoXoot/
 ├── .editorconfig      # Shared editor indentation, encoding, and newline rules
 ├── .prettierrc.json   # Shared formatting rules
 ├── README.md          # Setup, architecture, behavior, and maintenance guide
@@ -37,10 +37,12 @@ little-moments/       # Existing workspace folder; the app is named PhotoXoot
     ├── index.html     # Semantic page structure and stable element IDs
     ├── style.css      # Theme tokens, components, desktop and base responsive rules
     ├── mobile.css     # Touch targets, phone panels, navigation, and safe-area rules
+    ├── effects.js     # Portable RGB image effects, including Safari
+    ├── stickers.js    # Resolution-independent sticker artwork
     └── app.js         # State, UI events, camera lifecycle, rendering, and exports
 ```
 
-`index.html` loads `style.css` and then `mobile.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. There is one classic script, no module loader, and no bundler. The interface uses system fonts, text-labeled primary actions, restrained borders, and native disclosure controls for optional tools.
+`index.html` loads `style.css` and then `mobile.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. Three deferred classic scripts load in order: effects, stickers, then application behavior. There is no module loader or bundler. The interface uses system fonts, text-labeled primary actions, restrained borders, and native disclosure controls for optional tools.
 
 ### HTML responsibilities
 
@@ -72,7 +74,7 @@ On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panel
 
 ## Application state and ownership
 
-The app keeps booth defaults, independent settings for each moment, and temporary session resources.
+The app keeps booth defaults, independent settings for each moment, and temporary session resources. `openingCamera` and `busy` prevent overlapping requests; `generation` invalidates old asynchronous work. `galleryPage` tracks the phone gallery page.
 
 | Name                          | Purpose                                                                       |
 | ----------------------------- | ----------------------------------------------------------------------------- |
@@ -81,10 +83,10 @@ The app keeps booth defaults, independent settings for each moment, and temporar
 | `state.filter`, `state.color` | Indexes into the filter and frame catalogs.                                   |
 | `state.sticker`               | Selected decorative character, or an empty string.                            |
 | `state.mirror`                | Mirrors the video preview and newly captured camera pixels.                   |
-| `state.sound`                 | Enables the optional synthesized shutter tone.                                |
+| `state.sound`                 | Enables the optional mechanical shutter sound.                                |
 | `stream`                      | Active browser `MediaStream`, or `null`.                                      |
 | `facing`                      | Preferred camera direction: `user` or `environment`.                          |
-| `uploaded`                    | First imported photo canvas, retained as the current capture source.          |
+| `uploaded`                    | All imported photo canvases, retained as the current capture source.          |
 | `moments`                     | Up to 12 session moments, each retaining its raw photo canvases.              |
 | `busy`                        | Prevents overlapping capture sequences and some camera/upload actions.        |
 | `generation`                  | Cancellation token for asynchronous camera requests and countdowns.           |
@@ -101,20 +103,21 @@ Booth Reset restores the starting style, timer, and format for future captures w
 
 ## Editing after capture
 
-Every capture or import opens a live editor. Design essentials are visible immediately. Fine-tune design and Edit individual photos are native `<details>` sections that keep advanced controls accessible without overwhelming the initial view. Available controls include:
+Every capture or import opens a live editor. Design, Patterns, Stickers, Photo, and Text buttons switch between compact tool pages. Hidden pages are removed from keyboard focus using the native `hidden` attribute. Available controls include:
 
 - Layout: Strip, Grid, or Solo, without retaking the photos.
 - Six filters, brightness, and contrast.
 - Any frame color through a color picker, frame width from 0–80 px, and photo spacing from 0–40 px.
-- Optional caption, three caption fonts, sticker, and an optional date.
-- Individual-photo zoom from 1×–2.5×, 90° rotation, mirroring, and earlier/later ordering.
+- Optional caption, three caption fonts, and an optional date.
+- Seven drawn sticker designs (heart, daisy, bow, cherries, sparkles, smiley, and star), with adjustable size and four corner positions.
+- Individual-photo zoom from 1×–2.5×, horizontal/vertical crop position, 90° rotation, mirroring, and earlier/later ordering.
 - PNG or JPEG format and reset for the selected moment.
 
 Select a source-photo thumbnail before changing its zoom, rotation, mirror, or order. Repeated output slots share their source photo's transforms. Solo displays the first source photo; use Move earlier to choose another one. Layout changes reuse the available photos rather than creating new frames.
 
 **Exports have no watermark or automatic text.** An empty caption stays empty, and the date is off by default. When both are empty, the renderer removes the footer allocation. Branding appears only in the application interface, never in the image.
 
-The editor uses a two-column preview/control layout on wide screens and a stacked layout up to 750 px. Its footer keeps Done and Download visible while scrolling. Its scrollable phone dialog keeps download and Done editing actions near the bottom.
+On desktop, the editor pairs a preview with the active tool page. Phone layouts fill the available visual viewport with a flexible preview, compact tools, and fixed download controls. Style settings use five sub-pages; the photo gallery shows two sets per page. This avoids document and editor scrolling while keeping every tool and saved set reachable. Landscape phones use side-by-side preview/tools. `visualViewport` resize events adapt the height when Safari's toolbar or keyboard changes; the preview hides while typing in a reduced viewport.
 
 ## Execution flow
 
@@ -134,19 +137,19 @@ The request remembers its generation. If the app has stopped or superseded that 
 
 ### 3. Camera capture
 
-`capture()` ignores a request if a capture is already running. If there is no source, it opens the camera and returns; the next capture action takes photos. If an imported preview exists, it immediately creates a moment from that first imported image.
+`capture()` ignores overlapping operations and checks session capacity first. If there is no source, it starts the camera and continues into capture. With imported photos it creates a moment from the entire imported set. Settings and mirror state are snapshotted at the start; source/style controls are locked until completion or cancellation.
 
-For video, the app waits for a valid frame, disables capture, and takes one shot for Solo or four for Strip/Grid. Each shot has its own selected countdown, followed by `snapshot()`, optional shutter audio, and a visual flash. Multiple shots are separated by 650 ms. Generation checks cancel work after camera shutdown. A `finally` block restores capture controls on completion or cancellation.
+For video, the app waits for a valid frame, disables capture, and takes one shot for Solo or four for Strip/Grid. Each shot has its own selected countdown, followed by `snapshot()`, an optional two-part mechanical shutter sound, and a visual flash. Multiple shots are separated by 650 ms. Generation checks cancel work after camera shutdown. A `finally` block restores controls only if its generation is still current, so an older capture cannot unlock a newer one.
 
 `snapshot()` creates a 1000 × 750 canvas, optionally mirrors its coordinate system, and center-crops the video into it. Filters are not baked into the raw frame; they are applied during final rendering. Mirror affects newly captured camera photos, not imported images or already stored camera frames.
 
 ### 4. Local image import
 
-`importPhotos()` examines the first four selected files. It accepts JPEG, PNG, and WebP MIME types and files no larger than 20 MiB each. Invalid or undecodable files are skipped with feedback.
+`importPhotos()` examines the first four selected files. It accepts JPEG, PNG, and WebP files no larger than 20 MiB each. A recognized filename extension is accepted when an iPhone file provider omits the MIME type; decoding still validates the actual image. Invalid or undecodable files are skipped with feedback.
 
 For each valid file, an object URL feeds an `Image`; `decode()` waits for pixels. The image is copied into a canvas, preserving aspect ratio and limiting its longest edge to 1600 pixels without upscaling. Every file's object URL is revoked in `finally`.
 
-When at least one image succeeds, the camera stops. The first image becomes the local preview, and all decoded images are passed to `addMoment()`. Uploading already creates and opens a moment; pressing capture afterward reuses only the first imported image. Selecting fewer images than a layout needs repeats the available photos in output slots. Files beyond the first four are ignored.
+Import stops the camera before decoding and retains all successful images. The first is displayed in the local preview, and the complete set is passed to `addMoment()`. Pressing Use uploaded photos reuses the whole set. Use camera returns to camera mode without clearing saved moments. Generation checks discard decoding results after cancellation or clearing. Selecting fewer images than a layout needs repeats the available photos in output slots. Files beyond the first four are ignored.
 
 ### 5. Composition and restyling
 
@@ -162,7 +165,9 @@ Default padding is 36 px and gaps are 22 px; both are editable. Footer allocatio
 
 The renderer fills the frame, then clips each photo slot and draws a centered image using `drawCover()`. `context.save()`/`restore()` isolate clipping and filtering, keeping frame and footer text unfiltered. The image index wraps through the raw photo array when there are fewer photos than slots. Solo renders the first photo.
 
-The renderer applies each source photo's zoom, rotation, and mirror around the slot center. Quarter turns swap crop dimensions so the rotated image still covers its slot. Transforms and filters are applied only during composition; raw pixels stay unchanged. The caption uses the selected font and shrinks to fit down to 12 px. The date is drawn only when enabled. There is no brand text or fallback caption. Footer/sticker text contrast is chosen from the custom frame color. `filterValue(settings)` supplies canvas filters from the moment; without arguments it reads booth controls for CSS previews. Canvas filter support can vary by browser.
+The renderer applies each source photo's zoom, crop position, rotation, and mirror inside its clipped slot. Quarter turns swap crop dimensions so the rotated image still covers its slot. Transforms and filters are applied only during composition; raw pixels stay unchanged. The caption uses the selected font and shrinks to fit down to 12 px. The date is drawn only when enabled. There is no brand text or fallback caption. Footer text contrast follows the custom frame color. Stickers are paths and ellipses drawn by `PhotoStickers.draw()`, rather than font glyphs, so their shape is consistent across browsers and export resolutions.
+
+`filterValue(settings)` describes the preset, brightness, and contrast. The live video uses CSS filters. Saved photos, previews, thumbnails, and downloads use `PhotoEffects.filteredPhoto()`: it reads pixels with `getImageData()`, applies the preset RGB matrices while preserving alpha, and writes the processed pixels to a separate canvas. A WeakMap caches only the latest processed version of each source photo. Raw photos remain untouched. This avoids the [limited browser support of canvas filters](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter), including Safari versions where the old editor silently left photos unchanged. Slider redraws are coalesced into one animation frame; downloads and closing the editor always render the latest settings synchronously.
 
 ### 6. Gallery and download
 
@@ -174,28 +179,28 @@ The renderer applies each source photo's zoom, rotation, and mirror around the s
 
 Core functions are listed below, followed by the editor functions and inline handlers.
 
-| Function                                         | Inputs / result                                     | Responsibility                                                                               |
-| ------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `getElement(id)`                                 | Element ID → DOM element or `null`                  | Short lookup helper; callers expect required HTML IDs to exist.                              |
-| `toast(message)`                                 | Text; no return value                               | Updates the live status region and schedules hiding after 4.2 seconds.                       |
-| `filterValue(settings = null)`                   | Optional saved settings → string                    | Combines the selected preset, brightness, and contrast.                                      |
-| `updatePreview()`                                | No parameters                                       | Updates the booth video/import/demo CSS filters.                                             |
-| `resetCustomization()`                           | No parameters                                       | Restores defaults through existing option handlers and form values.                          |
-| `stopCamera()`                                   | No parameters                                       | Invalidates pending work, stops tracks, and restores camera controls.                        |
-| `startCamera()`                                  | No parameters → `Promise<boolean>`                  | Requests, attaches, and starts the camera; handles stale requests and errors.                |
-| `shutterSound()`                                 | No parameters                                       | Creates a brief Web Audio oscillator tone and closes its audio context afterward.            |
-| `drawCover(context, image, x, y, width, height)` | Drawing context, image source, destination geometry | Scales and centers pixels to fill a rectangle. Callers provide clipping when needed.         |
-| `snapshot()`                                     | No parameters → canvas                              | Captures raw video pixels with the current mirror setting.                                   |
-| `pause(ms)`                                      | Milliseconds → `Promise`                            | Timeout helper used for countdown and inter-shot spacing.                                    |
-| `capture()`                                      | No parameters → `Promise<void>`                     | Coordinates source checks, countdowns, snapshots, cancellation, and moment creation.         |
-| `importPhotos(event)`                            | File-input change event → `Promise<void>`           | Validates, decodes, scales, and releases local files; creates the imported moment.           |
-| `renderMoment(moment, canvas)`                   | Stored moment and destination canvas                | Composes photos, frame, filters, caption, date, and sticker. Mutates the destination canvas. |
-| `addMoment(photos)`                              | Array of raw canvases                               | Enforces the gallery limit, creates a moment and thumbnail, then opens it.                   |
-| `openMoment(moment)`                             | Stored moment                                       | Loads the moment's saved settings and opens its editor.                                      |
-| `renderGallery()`                                | No parameters                                       | Rebuilds the count, empty state, cards, and edit/delete actions.                             |
-| `downloadMoment()`                               | No parameters                                       | Encodes and requests download of the selected result.                                        |
-| `showInfo(title, content)`                       | Trusted title and HTML content                      | Inserts application-owned information and opens the info dialog. Never pass untrusted input. |
-| `toggleFullscreen()`                             | No parameters → `Promise<void>`                     | Toggles fullscreen on the viewfinder or reports browser limitations.                         |
+| Function                                               | Inputs / result                                     | Responsibility                                                                               |
+| ------------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `getElement(id)`                                       | Element ID → DOM element or `null`                  | Short lookup helper; callers expect required HTML IDs to exist.                              |
+| `toast(message)`                                       | Text; no return value                               | Updates the live status region and schedules hiding after 4.2 seconds.                       |
+| `filterValue(settings = null)`                         | Optional saved settings → string                    | Combines the selected preset, brightness, and contrast.                                      |
+| `updatePreview()`                                      | No parameters                                       | Updates the booth video/import/demo CSS filters.                                             |
+| `resetCustomization()`                                 | No parameters                                       | Restores defaults through existing option handlers and form values.                          |
+| `stopCamera()`                                         | No parameters                                       | Invalidates pending work, stops tracks, and restores camera controls.                        |
+| `startCamera()`                                        | No parameters → `Promise<boolean>`                  | Requests, attaches, and starts the camera; handles stale requests and errors.                |
+| `shutterSound()`                                       | No parameters                                       | Plays the two-part mechanical shutter on the gesture-activated audio context.                |
+| `drawCover(context, image, x, y, width, height, edit)` | Drawing context, image source, destination geometry | Scales and centers pixels to fill a rectangle. Callers provide clipping when needed.         |
+| `snapshot()`                                           | No parameters → canvas                              | Captures raw video pixels with the current mirror setting.                                   |
+| `pause(ms)`                                            | Milliseconds → `Promise`                            | Timeout helper used for countdown and inter-shot spacing.                                    |
+| `capture()`                                            | No parameters → `Promise<void>`                     | Coordinates source checks, countdowns, snapshots, cancellation, and moment creation.         |
+| `importPhotos(event)`                                  | File-input change event → `Promise<void>`           | Validates, decodes, scales, and releases local files; creates the imported moment.           |
+| `renderMoment(moment, canvas)`                         | Stored moment and destination canvas                | Composes photos, frame, filters, caption, date, and sticker. Mutates the destination canvas. |
+| `addMoment(photos, settings)`                          | Array of raw canvases                               | Enforces the gallery limit, creates a moment and thumbnail, then opens it.                   |
+| `openMoment(moment)`                                   | Stored moment                                       | Loads the moment's saved settings and opens its editor.                                      |
+| `renderGallery()`                                      | No parameters                                       | Rebuilds the count, empty state, cards, and edit/delete actions.                             |
+| `downloadMoment()`                                     | No parameters                                       | Encodes and requests download of the selected result.                                        |
+| `showInfo(title, content)`                             | Trusted title and HTML content                      | Inserts application-owned information and opens the info dialog. Never pass untrusted input. |
+| `toggleFullscreen()`                                   | No parameters → `Promise<void>`                     | Toggles fullscreen on the viewfinder or reports browser limitations.                         |
 
 ### Editor function reference
 
@@ -210,6 +215,20 @@ Core functions are listed below, followed by the editor functions and inline han
 | `resetMomentEdits()`       | Restores original settings, photo order, and identity transforms for only this moment.      |
 
 `editorFields` maps input IDs to saved property names and conversion types. Its input listeners convert range/select values to numbers where needed and checkbox values to booleans before rendering. Photo-transform buttons operate on `selectedPhotoIndex`. Editor form submission is prevented so Enter cannot reload the page.
+
+### Reliability and phone helpers
+
+| Function                                         | Responsibility                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `updateCaptureControls()`                        | Locks camera/style inputs during work and restores the correct capture/cancel labels. |
+| `updateSourceView()`                             | Restores camera, upload, or empty state and exposes Use camera after imports.         |
+| `prepareShutterSound()`                          | Activates a shared AudioContext during a direct user gesture for iPhone playback.     |
+| `PhotoEffects.filteredPhoto(source, expression)` | Produces and caches portable pixel-filtered canvases without modifying source pixels. |
+| `PhotoStickers.draw(context, id, x, y, size)`    | Draws scalable sticker artwork at a selected position.                                |
+| `PhotoStickers.thumbnail(id)`                    | Generates a small transparent sticker preview.                                        |
+| `selectEditorTab(tab)`                           | Updates active tool buttons and hides inactive tool pages.                            |
+| `updatePhoneLayout()`                            | Opens phone style groups and updates gallery pagination after a breakpoint change.    |
+| `updateViewportSize()`                           | Tracks Safari's actual visible height and keyboard state.                             |
 
 ### Inline event handlers
 
@@ -235,7 +254,7 @@ Photos and settings live in this tab's memory. There are no photo uploads, analy
 
 The Content Security Policy permits local scripts/styles and local/data/blob images and media, blocks app network connections with `connect-src 'none'`, and disallows embedded objects, form submissions, and base-URL changes. Inline style permission supports dynamic preview filters and color properties. Static hosting still receives normal page and asset requests.
 
-Exports contain redrawn pixels rather than the imported file's original metadata. Camera tracks stop explicitly. Import and download object URLs are revoked after use; optional audio contexts close when the tone ends. Removing moments releases their references, allowing garbage collection; memory reclamation timing belongs to the browser. Twelve moments can still use substantial memory because each retains raw canvases and a thumbnail.
+Exports contain redrawn pixels rather than the imported file's original metadata. Camera tracks stop explicitly. Import and download object URLs are revoked after use; the shared shutter audio context is activated during a user gesture and closes when the page is hidden via pagehide. Sound uses a brief filtered-noise envelope with two clicks, rather than an oscillator beep. Removing moments releases their references, allowing garbage collection; memory reclamation timing belongs to the browser. Twelve moments can still use substantial memory because each retains raw canvases and a thumbnail.
 
 ## Coding and maintenance conventions
 
@@ -251,14 +270,22 @@ To change appearance, edit HTML content or CSS component rules. Add filters and 
 
 ## Validation
 
-No test runner or package manifest is required by the application. If Node.js and Prettier are installed for development, use:
+The website has no runtime dependencies. Development-only Playwright and Prettier dependencies are pinned in `package.json` and `pnpm-lock.yaml`. To run the regression suite:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium webkit
+pnpm test
+```
+
+Tests cover real pixel changes without native canvas-filter support, PNG/JPEG output, drawn stickers, crop/reorder/reset, independent edits, cancelled imports, camera recovery, and every phone tool page at 320×568 through portrait and landscape sizes. WebKit is the Safari engine; physical camera permissions, iOS download UI, and audio playback still need device testing. Set `CHROME_EXECUTABLE` to use an installed Chrome or `TEST_BROWSERS=webkit` to run only WebKit. For syntax and formatting:
 
 ```bash
 node --check dist/app.js
-prettier --check dist/app.js dist/index.html dist/style.css dist/mobile.css README.md .prettierrc.json
+pnpm format:check
 ```
 
-Use the same file list with `prettier --write` to apply formatting. Formatting tools are development utilities; the deployed app does not load them.
+Use `pnpm exec prettier --write dist README.md tests package.json` to apply formatting. Formatting tools are development utilities; the deployed app does not load them.
 
 Before publishing, serve the site locally and check:
 
@@ -272,3 +299,9 @@ Before publishing, serve the site locally and check:
 8. Desktop and phone widths, bottom navigation, keyboard capture, dialog focus/Escape/backdrop closing, and reduced motion.
 
 Real camera permission, hardware switching, sound, and fullscreen need checks in the target browsers and devices. The application does not include persistent recovery, cloud sync, or sharing services.
+
+### Patterned frames and script captions
+
+The editor’s Patterns tab offers plain, polka-dot, diagonal-stripe, gingham-check, and heart backgrounds with adjustable ink color and scale. `drawFramePattern()` draws beneath the photographs, and leaves the caption footer clear. Patterns are stored per moment and included in both PNG and JPEG exports.
+
+Allura, Dancing Script, and Pacifico are bundled in `dist/fonts/` with their SIL Open Font License files from the [Google Fonts repository](https://github.com/google/fonts). No external font service is contacted. Vladimir Script uses an installed local copy, with bundled Allura as the fallback on iPhone and other devices without it; the proprietary font is not redistributed ([Microsoft font information](https://learn.microsoft.com/en-us/typography/font-list/vladimir-script)). `captionFontsReady` loads these assets, refreshes the preview, and is awaited by `downloadMoment()` to keep exported text consistent.

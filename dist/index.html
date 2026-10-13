@@ -23,7 +23,7 @@
     <script src="stickers.js" defer></script>
     <script src="app.js" defer></script>
   </head>
-  <body data-mobile-panel="booth">
+  <body data-mobile-panel="booth" data-style-tab="layout">
     <header class="header">
       <a class="brand" href="#"
         >PhotoXoot<span class="brand-mark" aria-hidden="true"></span
@@ -136,82 +136,109 @@
             <h2>Start with a style</h2>
             <button id="resetBtn" class="text-button">Reset</button>
           </div>
+          <nav class="style-tabs" aria-label="Style tools">
+            <button type="button" data-style-tab="layout" aria-pressed="true">
+              Layout</button
+            ><button type="button" data-style-tab="filter" aria-pressed="false">
+              Filter</button
+            ><button type="button" data-style-tab="frame" aria-pressed="false">
+              Frame</button
+            ><button type="button" data-style-tab="extras" aria-pressed="false">
+              Extras</button
+            ><button type="button" data-style-tab="adjust" aria-pressed="false">
+              Adjust
+            </button>
+          </nav>
           <div class="custom-body">
-            <div class="section-label">
-              <h3>Layout</h3>
-              <span id="layoutCount">4 photos</span>
-            </div>
-            <div class="layout-options" id="layouts">
-              <button
-                class="layout active"
-                data-layout="strip"
-                aria-pressed="true"
-              >
-                <span class="layout-icon strip-icon" aria-hidden="true"
-                  ><i></i><i></i><i></i><i></i></span
-                >Strip</button
-              ><button class="layout" data-layout="grid" aria-pressed="false">
-                <span class="layout-icon grid-icon" aria-hidden="true"
-                  ><i></i><i></i><i></i><i></i></span
-                >Grid</button
-              ><button class="layout" data-layout="single" aria-pressed="false">
-                <span class="layout-icon single-icon" aria-hidden="true"
-                  ><i></i></span
-                >Solo
-              </button>
-            </div>
-            <div class="section-label"><h3>Filter</h3></div>
-            <div class="filters" id="filters"></div>
-            <div class="section-label">
-              <h3>Frame</h3>
-              <span id="colorName">Vanilla</span>
-            </div>
-            <div class="swatches" id="swatches"></div>
-            <!-- Optional choices remain available without crowding the main capture flow. -->
-            <details class="options-group">
-              <summary>Caption & decorations</summary>
-              <div class="options-body">
-                <label class="field-label" for="caption">Caption</label>
-                <div class="caption-field">
-                  <input
-                    id="caption"
-                    maxlength="50"
-                    placeholder="Add a caption"
-                    aria-label="Photo caption"
-                  />
-                </div>
-                <div class="section-label"><h3>Sticker</h3></div>
-                <div class="stickers" id="stickers"></div>
+            <section data-style-section="layout">
+              <div class="section-label">
+                <h3>Layout</h3>
+                <span id="layoutCount">4 photos</span>
               </div>
-            </details>
-            <details class="fine-tune options-group">
-              <summary>Image adjustments</summary>
-              <div class="options-body">
-                <label
-                  >Brightness
-                  <input
-                    id="brightness"
-                    type="range"
-                    min="60"
-                    max="140"
-                    value="100" /></label
-                ><label
-                  >Contrast
-                  <input
-                    id="contrast"
-                    type="range"
-                    min="60"
-                    max="140"
-                    value="100" /></label
-                ><label
-                  >Export format
-                  <select id="format">
-                    <option value="png">PNG</option>
-                    <option value="jpeg">JPEG</option>
-                  </select></label
+              <div class="layout-options" id="layouts">
+                <button
+                  class="layout active"
+                  data-layout="strip"
+                  aria-pressed="true"
                 >
+                  <span class="layout-icon strip-icon" aria-hidden="true"
+                    ><i></i><i></i><i></i><i></i></span
+                  >Strip</button
+                ><button class="layout" data-layout="grid" aria-pressed="false">
+                  <span class="layout-icon grid-icon" aria-hidden="true"
+                    ><i></i><i></i><i></i><i></i></span
+                  >Grid</button
+                ><button
+                  class="layout"
+                  data-layout="single"
+                  aria-pressed="false"
+                >
+                  <span class="layout-icon single-icon" aria-hidden="true"
+                    ><i></i></span
+                  >Solo
+                </button>
               </div>
-            </details>
+            </section>
+            <section data-style-section="filter">
+              <div class="section-label"><h3>Filter</h3></div>
+              <div class="filters" id="filters"></div>
+            </section>
+            <section data-style-section="frame">
+              <div class="section-label">
+                <h3>Frame</h3>
+                <span id="colorName">Vanilla</span>
+              </div>
+              <div class="swatches" id="swatches"></div>
+            </section>
+            <section data-style-section="extras">
+              <!-- Optional choices remain available without crowding the main capture flow. -->
+              <details class="options-group">
+                <summary>Caption & decorations</summary>
+                <div class="options-body">
+                  <label class="field-label" for="caption">Caption</label>
+                  <div class="caption-field">
+                    <input
+                      id="caption"
+                      maxlength="50"
+                      placeholder="Add a caption"
+                      aria-label="Photo caption"
+                    />
+                  </div>
+                  <div class="section-label"><h3>Sticker</h3></div>
+                  <div class="stickers" id="stickers"></div>
+                </div>
+              </details>
+            </section>
+            <section data-style-section="adjust">
+              <details class="fine-tune options-group">
+                <summary>Image adjustments</summary>
+                <div class="options-body">
+                  <label
+                    >Brightness
+                    <input
+                      id="brightness"
+                      type="range"
+                      min="60"
+                      max="140"
+                      value="100" /></label
+                  ><label
+                    >Contrast
+                    <input
+                      id="contrast"
+                      type="range"
+                      min="60"
+                      max="140"
+                      value="100" /></label
+                  ><label
+                    >Export format
+                    <select id="format">
+                      <option value="png">PNG</option>
+                      <option value="jpeg">JPEG</option>
+                    </select></label
+                  >
+                </div>
+              </details>
+            </section>
             <p class="settings-hint">
               You can change everything after capture.
             </p>
@@ -232,6 +259,19 @@
             <span>Capture or upload to get started.</span>
           </div>
         </div>
+        <nav
+          id="galleryPager"
+          class="gallery-pager"
+          hidden
+          aria-label="Photo pages"
+        >
+          <button id="previousGalleryPage" aria-label="Previous photo page">
+            Previous</button
+          ><span id="galleryPageLabel" role="status"></span
+          ><button id="nextGalleryPage" aria-label="Next photo page">
+            Next
+          </button>
+        </nav>
       </section>
     </main>
     <footer>
@@ -264,6 +304,15 @@
       <button class="dialog-close" aria-label="Close preview">×</button>
       <h2 id="editorTitle">Edit your photos</h2>
       <p>Changes save automatically in this session.</p>
+      <nav class="editor-tabs" aria-label="Editing tools">
+        <button data-editor-tab="design" aria-pressed="true">Design</button
+        ><button data-editor-tab="patterns" aria-pressed="false">
+          Patterns</button
+        ><button data-editor-tab="stickers" aria-pressed="false">
+          Stickers</button
+        ><button data-editor-tab="photo" aria-pressed="false">Photo</button
+        ><button data-editor-tab="text" aria-pressed="false">Text</button>
+      </nav>
       <div class="result-editor">
         <div class="result-preview">
           <canvas
@@ -272,8 +321,7 @@
           ></canvas>
         </div>
         <form class="editor-controls" aria-label="Photo editor">
-          <fieldset>
-            <legend>Design</legend>
+          <section class="editor-pane" data-editor-section="design">
             <div class="editor-grid">
               <label
                 >Layout
@@ -291,46 +339,8 @@
                 >Frame color <input id="editFrameColor" type="color"
               /></label>
               <label
-                >Sticker
-                <select id="editSticker"></select
-              ></label>
-            </div>
-            <label class="editor-caption"
-              >Caption
-              <input id="editCaption" maxlength="50" placeholder="Optional"
-            /></label>
-          </fieldset>
-          <div class="editor-grid sticker-options">
-            <label
-              >Sticker size
-              <input
-                id="editStickerSize"
-                type="range"
-                min="0.6"
-                max="1.6"
-                value="1"
-                step="0.1"
-            /></label>
-            <label
-              >Sticker position
-              <select id="editStickerPosition">
-                <option value="bottom-right">Bottom right</option>
-                <option value="bottom-left">Bottom left</option>
-                <option value="top-right">Top right</option>
-                <option value="top-left">Top left</option>
-              </select></label
-            >
-          </div>
-          <details class="options-group editor-adjustments">
-            <summary>Fine-tune design</summary>
-            <div class="options-body editor-grid">
-              <label
                 >Frame width
                 <input id="editPadding" type="range" min="0" max="80" step="1"
-              /></label>
-              <label
-                >Photo spacing
-                <input id="editGap" type="range" min="0" max="40" step="1"
               /></label>
               <label
                 >Brightness
@@ -351,76 +361,142 @@
                   step="1"
               /></label>
               <label
-                >Caption font
-                <select id="editCaptionFont">
-                  <option value="Georgia">Serif</option>
-                  <option value="Arial">Sans serif</option>
-                  <option value="monospace">Typewriter</option>
+                >Photo spacing
+                <input id="editGap" type="range" min="0" max="40" step="1"
+              /></label>
+              <button type="button" id="resetMomentBtn" class="text-button">
+                Reset all edits
+              </button>
+            </div>
+          </section>
+          <section class="editor-pane" data-editor-section="patterns" hidden>
+            <label
+              >Pattern<select id="editPattern">
+                <option value="solid">Plain</option>
+                <option value="dots">Polka dots</option>
+                <option value="stripes">Diagonal stripes</option>
+                <option value="checks">Gingham checks</option>
+                <option value="hearts">Little hearts</option>
+              </select></label
+            >
+            <div class="editor-grid">
+              <label
+                >Pattern color<input
+                  id="editPatternColor"
+                  type="color" /></label
+              ><label
+                >Pattern size<input
+                  id="editPatternScale"
+                  type="range"
+                  min="16"
+                  max="80"
+                  step="4"
+              /></label>
+            </div>
+          </section>
+          <section class="editor-pane" data-editor-section="stickers" hidden>
+            <label
+              >Sticker
+              <select id="editSticker"></select
+            ></label>
+            <div
+              id="editorStickerChoices"
+              class="stickers editor-sticker-choices"
+              aria-label="Sticker designs"
+            ></div>
+            <div class="editor-grid">
+              <label
+                >Size
+                <input
+                  id="editStickerSize"
+                  type="range"
+                  min="0.6"
+                  max="1.6"
+                  value="1"
+                  step="0.1" /></label
+              ><label
+                >Position
+                <select id="editStickerPosition">
+                  <option value="bottom-right">Bottom right</option>
+                  <option value="bottom-left">Bottom left</option>
+                  <option value="top-right">Top right</option>
+                  <option value="top-left">Top left</option>
                 </select></label
               >
-              <label class="editor-checkbox"
-                ><input id="editShowDate" type="checkbox" />Include date</label
-              >
             </div>
-          </details>
-          <details class="options-group editor-photo-details">
-            <summary>Edit individual photos</summary>
-            <div class="options-body">
-              <p class="editor-hint">
-                Select a photo to crop, rotate, or reorder. Solo uses the first
-                photo.
-              </p>
-              <div id="editPhotos" class="editor-photos"></div>
+          </section>
+          <section class="editor-pane" data-editor-section="photo" hidden>
+            <div id="editPhotos" class="editor-photos"></div>
+            <div class="photo-sliders">
               <label
                 >Zoom
-                <input id="editZoom" type="range" min="1" max="2.5" step="0.05"
+                <input
+                  id="editZoom"
+                  type="range"
+                  min="1"
+                  max="2.5"
+                  step="0.05" /></label
+              ><label
+                >Move left / right
+                <input
+                  id="editPanX"
+                  type="range"
+                  min="-100"
+                  max="100"
+                  value="0" /></label
+              ><label
+                >Move up / down
+                <input
+                  id="editPanY"
+                  type="range"
+                  min="-100"
+                  max="100"
+                  value="0"
               /></label>
-              <div class="editor-grid crop-position">
-                <label
-                  >Horizontal crop
-                  <input
-                    id="editPanX"
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value="0" /></label
-                ><label
-                  >Vertical crop
-                  <input
-                    id="editPanY"
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value="0"
-                /></label>
-              </div>
-              <div class="editor-photo-actions">
-                <button type="button" id="rotatePhoto">Rotate 90°</button
-                ><button
-                  type="button"
-                  id="editPhotoMirror"
-                  aria-pressed="false"
-                >
-                  Mirror</button
-                ><button type="button" id="movePhotoLeft">Move earlier</button
-                ><button type="button" id="movePhotoRight">Move later</button>
-              </div>
             </div>
-          </details>
-          <div class="editor-grid export-options">
+            <div class="editor-photo-actions">
+              <button type="button" id="rotatePhoto">Rotate 90°</button
+              ><button type="button" id="editPhotoMirror" aria-pressed="false">
+                Mirror</button
+              ><button type="button" id="movePhotoLeft">Move earlier</button
+              ><button type="button" id="movePhotoRight">Move later</button>
+            </div>
+          </section>
+          <section class="editor-pane" data-editor-section="text" hidden>
             <label
-              >File format
-              <select id="editFormat">
-                <option value="png">PNG · best quality</option>
-                <option value="jpeg">JPEG · smaller file</option>
+              >Caption
+              <input
+                id="editCaption"
+                maxlength="50"
+                placeholder="A little note, if you like"
+            /></label>
+            <label
+              >Caption font
+              <select id="editCaptionFont">
+                <option value="Georgia">Serif</option>
+                <option value='"Vladimir Local", Allura, cursive'>
+                  Vladimir Script / Allura
+                </option>
+                <option value="Allura">Allura · elegant script</option>
+                <option value='"Dancing Script"'>
+                  Dancing Script · handwritten
+                </option>
+                <option value="Pacifico">Pacifico · retro script</option>
+                <option value="Arial">Sans serif</option>
+                <option value="monospace">Typewriter</option>
               </select></label
-            ><button type="button" id="resetMomentBtn" class="text-button">
-              Reset edits
-            </button>
-          </div>
+            >
+            <label class="editor-checkbox"
+              ><input id="editShowDate" type="checkbox" />Include date</label
+            >
+          </section>
         </form>
       </div>
       <div class="editor-footer">
+        <select id="editFormat" aria-label="Download format">
+          <option value="png">PNG</option>
+          <option value="jpeg">JPEG</option>
+        </select>
         <button id="doneEditingBtn" class="editor-done">Done</button
         ><button id="downloadBtn" class="primary">Download</button>
       </div>
