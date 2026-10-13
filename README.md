@@ -2,7 +2,7 @@
 
 PhotoXoot is a responsive photo booth built with vanilla HTML, CSS, and JavaScript. Capture a photo strip, grid, or solo photo; import local images; customize the result; and download it as PNG or JPEG.
 
-There is no backend, runtime dependency, package installation, or build step. `dist/` contains the editable source and the files served to visitors, despite its conventional build-output name.
+Running the website requires no backend, runtime dependencies, package installation, or build step. Optional development tools are documented under Validation. `dist/` contains the editable source and the files served to visitors, despite its conventional build-output name.
 
 ## Quick start
 
@@ -20,7 +20,7 @@ For deployment, upload the contents of `dist/` to an HTTPS static host. Camera a
 
 The public site is [PhotoXoot](https://saz-v1.github.io/PhotoXoot/).
 
-`.github/workflows/pages.yml` deploys only `dist/` through GitHub Actions. Push website changes to `main` to publish them automatically, or run the workflow manually from the repository's Actions tab. The workflow checks JavaScript syntax, configures Pages, uploads the static site, and deploys it to the `github-pages` environment. No build or package installation is needed.
+`.github/workflows/pages.yml` deploys only `dist/` through GitHub Actions. Push website changes to `main` to publish them automatically, or run the workflow manually from the repository's Actions tab. The workflow checks JavaScript syntax, configures Pages, uploads the static site, and deploys it to the `github-pages` environment. No build or package installation is needed. The workflow runs syntax checks only; run browser regression tests locally before publishing. README-only and test-only commits do not trigger deployment.
 
 Repository **Settings → Pages → Build and deployment → Source** must be **GitHub Actions**. Deployment status and errors appear in [Actions](https://github.com/saz-v1/PhotoXoot/actions). Files use relative asset URLs so the site works under the repository's `/PhotoXoot/` path. HTTPS supports camera access; visitors still need to grant browser permission.
 
@@ -32,24 +32,30 @@ This setup follows [GitHub's custom Pages workflow documentation](https://docs.g
 PhotoXoot/
 ├── .editorconfig      # Shared editor indentation, encoding, and newline rules
 ├── .prettierrc.json   # Shared formatting rules
+├── .github/workflows/pages.yml # Syntax checks and GitHub Pages deployment
+├── .gitignore         # Excludes dependencies, test browsers, and screenshots
+├── package.json       # Development scripts and pinned testing/formatting tools
+├── pnpm-lock.yaml     # Reproducible development dependency versions
+├── tests/photoxoot.test.cjs # Chrome/WebKit regression tests and local test server
 ├── README.md          # Setup, architecture, behavior, and maintenance guide
 └── dist/
     ├── index.html     # Semantic page structure and stable element IDs
     ├── style.css      # Theme tokens, components, desktop and base responsive rules
     ├── mobile.css     # Touch targets, phone panels, navigation, and safe-area rules
+    ├── fonts/         # Bundled script fonts and their license notices
     ├── effects.js     # Portable RGB image effects, including Safari
     ├── stickers.js    # Resolution-independent sticker artwork
     └── app.js         # State, UI events, camera lifecycle, rendering, and exports
 ```
 
-`index.html` loads `style.css` and then `mobile.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. Three deferred classic scripts load in order: effects, stickers, then application behavior. There is no module loader or bundler. The interface uses system fonts, text-labeled primary actions, restrained borders, and native disclosure controls for optional tools.
+`index.html` loads `style.css` and then `mobile.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. Three deferred classic scripts load in order: effects, stickers, then application behavior. There is no module loader or bundler. The interface uses system fonts; photo captions also support bundled script fonts. It uses text-labeled primary actions, restrained borders, and native disclosure controls for optional tools.
 
 ### HTML responsibilities
 
 - **Header and introduction:** compact PhotoXoot branding, help/privacy actions, and a short capture/edit/save introduction.
 - **`boothPanel`:** neutral welcome screen, camera video, imported-image preview, countdown, flash, timer, capture, and camera controls. JavaScript adds the Stop camera button.
-- **`customizePanel`:** visible layout/filter/frame choices; optional caption/sticker and image-adjustment disclosure sections.
-- **`momentsPanel`:** session count, gallery, and clear-session action.
+- **`customizePanel`:** layout/filter/frame choices, caption/stickers, and image adjustments. On phones these are five separate style pages.
+- **`momentsPanel`:** session count, gallery, clear-session action, and two-moment pagination on phones.
 - **Mobile navigation:** Camera, Style, and Photos buttons use `data-panel` values to select `booth`, `customize`, or `moments`; `aria-controls` identifies each panel.
 - **`infoDialog`:** help, privacy information, and clear-session confirmation.
 - **`resultDialog`:** live composition, design and individual-photo controls, Done editing, and download actions.
@@ -63,13 +69,14 @@ Element IDs are the contract between HTML and `getElement()` in JavaScript. Rena
 
 `mobile.css` layers touch-friendly controls over those rules:
 
-| Condition          | Behavior                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| Up to 900 px       | Single-column workspace and compact controls.                                         |
-| Up to 650 px       | One panel at a time, fixed bottom navigation, phone-sized dialogs, safe-area spacing. |
-| Up to 359 px       | Narrower branding, swatches, and gallery actions.                                     |
-| Landscape viewport | Reduced editor preview heights.                                                       |
+| Condition                                               | Behavior                                                                                                                      |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Width ≤ 900 px                                          | Single-column workspace and compact controls.                                                                                 |
+| Width ≤ 750 px, or height ≤ 500 px with width ≤ 1000 px | Fixed-screen phone mode: one panel at a time, bottom navigation, paginated gallery, fullscreen editor, and safe-area spacing. |
+| Width ≤ 750 px and height ≤ 650 px                      | More compact spacing and controls for short portrait screens.                                                                 |
+| Height ≤ 500 px and width ≤ 1000 px                     | Landscape editor places preview beside tools; camera controls use a compact row.                                              |
 
+The `phoneLayout` media query in JavaScript must match the phone-mode CSS condition. `updateViewportSize()` sets `--app-height` and `--viewport-top` from `visualViewport`; a height reduction over 120 px enables `keyboard-open`. This is a keyboard heuristic, not a keyboard API.
 On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panels. Their DOM nodes and settings remain in place. On larger screens, the panels appear together. Dynamic viewport units and `env(safe-area-inset-*)` keep controls clear of browser chrome and device cutouts. The gallery uses `:has()`, so older browsers may differ in presentation.
 
 ## Application state and ownership
@@ -81,7 +88,7 @@ The app keeps booth defaults, independent settings for each moment, and temporar
 | `filters`, `colors`           | Option catalogs used to create buttons and render the selected styling.       |
 | `state.layout`                | `strip`, `grid`, or `single`; controls output geometry and camera shot count. |
 | `state.filter`, `state.color` | Indexes into the filter and frame catalogs.                                   |
-| `state.sticker`               | Selected decorative character, or an empty string.                            |
+| `state.sticker`               | Selected vector sticker ID, or an empty string.                               |
 | `state.mirror`                | Mirrors the video preview and newly captured camera pixels.                   |
 | `state.sound`                 | Enables the optional mechanical shutter sound.                                |
 | `stream`                      | Active browser `MediaStream`, or `null`.                                      |
@@ -108,7 +115,8 @@ Every capture or import opens a live editor. Design, Patterns, Stickers, Photo, 
 - Layout: Strip, Grid, or Solo, without retaking the photos.
 - Six filters, brightness, and contrast.
 - Any frame color through a color picker, frame width from 0–80 px, and photo spacing from 0–40 px.
-- Optional caption, three caption fonts, and an optional date.
+- Optional caption, seven font choices (including Vladimir Script with an Allura fallback), and an optional date.
+- Plain, polka-dot, diagonal-stripe, gingham-check, or heart frames, with custom pattern color and a 16–80 px pattern scale.
 - Seven drawn sticker designs (heart, daisy, bow, cherries, sparkles, smiley, and star), with adjustable size and four corner positions.
 - Individual-photo zoom from 1×–2.5×, horizontal/vertical crop position, 90° rotation, mirroring, and earlier/later ordering.
 - PNG or JPEG format and reset for the selected moment.
@@ -118,6 +126,12 @@ Select a source-photo thumbnail before changing its zoom, rotation, mirror, or o
 **Exports have no watermark or automatic text.** An empty caption stays empty, and the date is off by default. When both are empty, the renderer removes the footer allocation. Branding appears only in the application interface, never in the image.
 
 On desktop, the editor pairs a preview with the active tool page. Phone layouts fill the available visual viewport with a flexible preview, compact tools, and fixed download controls. Style settings use five sub-pages; the photo gallery shows two sets per page. This avoids document and editor scrolling while keeping every tool and saved set reachable. Landscape phones use side-by-side preview/tools. `visualViewport` resize events adapt the height when Safari's toolbar or keyboard changes; the preview hides while typing in a reduced viewport.
+
+### Patterned frames and script captions
+
+The editor’s Patterns tab offers plain, polka-dot, diagonal-stripe, gingham-check, and heart backgrounds with adjustable ink color and scale. `drawFramePattern()` draws beneath the photographs, and leaves the caption footer clear. Patterns are stored per moment and included in both PNG and JPEG exports.
+
+Allura, Dancing Script, and Pacifico are bundled in `dist/fonts/` with their SIL Open Font License files from the [Google Fonts repository](https://github.com/google/fonts). No external font service is contacted. Vladimir Script uses an installed local copy, with bundled Allura as the fallback on iPhone and other devices without it; the proprietary font is not redistributed ([Microsoft font information](https://learn.microsoft.com/en-us/typography/font-list/vladimir-script)). `captionFontsReady` loads these assets, refreshes the preview, and is awaited by `downloadMoment()` to keep exported text consistent.
 
 ## Execution flow
 
@@ -163,56 +177,57 @@ Import stops the camera before decoding and retains all successful images. The f
 
 Default padding is 36 px and gaps are 22 px; both are editable. Footer allocation is 100 px only when a caption or date is requested, otherwise zero. Each photo slot uses a 4:3 ratio. Canvas height follows the computed slot heights, rows, gaps, padding, and footer; assigning it to a canvas converts fractional values to integer dimensions.
 
-The renderer fills the frame, then clips each photo slot and draws a centered image using `drawCover()`. `context.save()`/`restore()` isolate clipping and filtering, keeping frame and footer text unfiltered. The image index wraps through the raw photo array when there are fewer photos than slots. Solo renders the first photo.
+The renderer fills the frame and draws its selected pattern beneath the photos, leaving any caption footer clear. It then clips each photo slot and draws a centered image using `drawCover()`. `context.save()`/`restore()` isolate clipping and transforms. Filtering processes only source-photo canvases, keeping frame and footer text unfiltered. The image index wraps through the raw photo array when there are fewer photos than slots. Solo renders the first photo.
 
 The renderer applies each source photo's zoom, crop position, rotation, and mirror inside its clipped slot. Quarter turns swap crop dimensions so the rotated image still covers its slot. Transforms and filters are applied only during composition; raw pixels stay unchanged. The caption uses the selected font and shrinks to fit down to 12 px. The date is drawn only when enabled. There is no brand text or fallback caption. Footer text contrast follows the custom frame color. Stickers are paths and ellipses drawn by `PhotoStickers.draw()`, rather than font glyphs, so their shape is consistent across browsers and export resolutions.
 
-`filterValue(settings)` describes the preset, brightness, and contrast. The live video uses CSS filters. Saved photos, previews, thumbnails, and downloads use `PhotoEffects.filteredPhoto()`: it reads pixels with `getImageData()`, applies the preset RGB matrices while preserving alpha, and writes the processed pixels to a separate canvas. A WeakMap caches only the latest processed version of each source photo. Raw photos remain untouched. This avoids the [limited browser support of canvas filters](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter), including Safari versions where the old editor silently left photos unchanged. Slider redraws are coalesced into one animation frame; downloads and closing the editor always render the latest settings synchronously.
+`filterValue(settings)` describes the preset, brightness, and contrast. The live video uses CSS filters. Saved photos, previews, thumbnails, and downloads use `PhotoEffects.filteredPhoto()`: it reads pixels with `getImageData()`, applies the preset RGB matrices while preserving alpha, and writes the processed pixels to a separate canvas. A WeakMap caches only the latest processed version of each source photo. Raw photos remain untouched. This avoids the [limited browser support of canvas filters](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter), including Safari versions where the old editor silently left photos unchanged. Slider redraws are coalesced into one animation frame; closing the editor renders the latest settings synchronously. Downloads first await local font loading, then render the latest settings before encoding.
 
 ### 6. Gallery and download
 
 `addMoment()` checks the 12-moment limit, stores raw canvases, renders a JPEG thumbnail, refreshes the gallery, and opens the result dialog. `renderGallery()` reconstructs cards with edit and delete buttons. Deleting removes the moment from the collection; clearing the session also removes the imported preview and stops the camera after the in-app confirmation.
 
-`downloadMoment()` redraws the selected moment with its saved settings, then uses `canvas.toBlob()` to encode PNG or JPEG. JPEG requests quality `0.95`; PNG is lossless. A temporary link with a `photoxoot-<timestamp>` filename triggers the browser download. Its object URL is revoked after ten seconds. The success toast means a download was requested; browser settings determine whether it is saved automatically or prompts for a destination.
+`downloadMoment()` waits for `captionFontsReady`, then redraws the selected moment with its saved settings, then uses `canvas.toBlob()` to encode PNG or JPEG. JPEG requests quality `0.95`; PNG is lossless. A temporary link with a `photoxoot-<timestamp>` filename triggers the browser download. Its object URL is revoked after ten seconds. The success toast means a download was requested; browser settings determine whether it is saved automatically or prompts for a destination.
 
 ## Function reference
 
-Core functions are listed below, followed by the editor functions and inline handlers.
+The tables cover all named application functions and the public helper APIs. Private effect helpers and inline handlers are described separately.
 
-| Function                                               | Inputs / result                                     | Responsibility                                                                               |
-| ------------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `getElement(id)`                                       | Element ID → DOM element or `null`                  | Short lookup helper; callers expect required HTML IDs to exist.                              |
-| `toast(message)`                                       | Text; no return value                               | Updates the live status region and schedules hiding after 4.2 seconds.                       |
-| `filterValue(settings = null)`                         | Optional saved settings → string                    | Combines the selected preset, brightness, and contrast.                                      |
-| `updatePreview()`                                      | No parameters                                       | Updates the booth video/import/demo CSS filters.                                             |
-| `resetCustomization()`                                 | No parameters                                       | Restores defaults through existing option handlers and form values.                          |
-| `stopCamera()`                                         | No parameters                                       | Invalidates pending work, stops tracks, and restores camera controls.                        |
-| `startCamera()`                                        | No parameters → `Promise<boolean>`                  | Requests, attaches, and starts the camera; handles stale requests and errors.                |
-| `shutterSound()`                                       | No parameters                                       | Plays the two-part mechanical shutter on the gesture-activated audio context.                |
-| `drawCover(context, image, x, y, width, height, edit)` | Drawing context, image source, destination geometry | Scales and centers pixels to fill a rectangle. Callers provide clipping when needed.         |
-| `snapshot()`                                           | No parameters → canvas                              | Captures raw video pixels with the current mirror setting.                                   |
-| `pause(ms)`                                            | Milliseconds → `Promise`                            | Timeout helper used for countdown and inter-shot spacing.                                    |
-| `capture()`                                            | No parameters → `Promise<void>`                     | Coordinates source checks, countdowns, snapshots, cancellation, and moment creation.         |
-| `importPhotos(event)`                                  | File-input change event → `Promise<void>`           | Validates, decodes, scales, and releases local files; creates the imported moment.           |
-| `renderMoment(moment, canvas)`                         | Stored moment and destination canvas                | Composes photos, frame, filters, caption, date, and sticker. Mutates the destination canvas. |
-| `addMoment(photos, settings)`                          | Array of raw canvases                               | Enforces the gallery limit, creates a moment and thumbnail, then opens it.                   |
-| `openMoment(moment)`                                   | Stored moment                                       | Loads the moment's saved settings and opens its editor.                                      |
-| `renderGallery()`                                      | No parameters                                       | Rebuilds the count, empty state, cards, and edit/delete actions.                             |
-| `downloadMoment()`                                     | No parameters                                       | Encodes and requests download of the selected result.                                        |
-| `showInfo(title, content)`                             | Trusted title and HTML content                      | Inserts application-owned information and opens the info dialog. Never pass untrusted input. |
-| `toggleFullscreen()`                                   | No parameters → `Promise<void>`                     | Toggles fullscreen on the viewfinder or reports browser limitations.                         |
+| Function                                               | Inputs / result                                     | Responsibility                                                                                    |
+| ------------------------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `getElement(id)`                                       | Element ID → DOM element or `null`                  | Short lookup helper; callers expect required HTML IDs to exist.                                   |
+| `toast(message)`                                       | Text; no return value                               | Updates the live status region and schedules hiding after 4.2 seconds.                            |
+| `filterValue(settings = null)`                         | Optional saved settings → string                    | Combines the selected preset, brightness, and contrast.                                           |
+| `updatePreview()`                                      | No parameters                                       | Updates the booth video/import/demo CSS filters.                                                  |
+| `resetCustomization()`                                 | No parameters                                       | Restores defaults through existing option handlers and form values.                               |
+| `stopCamera()`                                         | No parameters                                       | Invalidates pending work, stops tracks, and restores camera controls.                             |
+| `startCamera()`                                        | No parameters → `Promise<boolean>`                  | Requests, attaches, and starts the camera; handles stale requests and errors.                     |
+| `shutterSound()`                                       | No parameters                                       | Plays the two-part mechanical shutter on the gesture-activated audio context.                     |
+| `drawCover(context, image, x, y, width, height, edit)` | Drawing context, image source, destination geometry | Scales pixels to cover a rectangle, applying zoom and pan. Callers provide clipping and rotation. |
+| `snapshot(mirror = state.mirror)`                      | No parameters → canvas                              | Captures raw video pixels using the capture sequence’s snapshotted mirror setting.                |
+| `pause(ms)`                                            | Milliseconds → `Promise`                            | Timeout helper used for countdown and inter-shot spacing.                                         |
+| `capture()`                                            | No parameters → `Promise<void>`                     | Coordinates source checks, countdowns, snapshots, cancellation, and moment creation.              |
+| `importPhotos(event)`                                  | File-input change event → `Promise<void>`           | Validates, decodes, scales, and releases local files; creates the imported moment.                |
+| `renderMoment(moment, canvas)`                         | Stored moment and destination canvas                | Composes photos, frame, filters, caption, date, and sticker. Mutates the destination canvas.      |
+| `addMoment(photos, settings)`                          | Array of raw canvases                               | Enforces the gallery limit, creates a moment and thumbnail, then opens it.                        |
+| `openMoment(moment)`                                   | Stored moment                                       | Loads the moment's saved settings and opens its editor.                                           |
+| `renderGallery()`                                      | No parameters                                       | Rebuilds the count, empty state, cards, and edit/delete actions.                                  |
+| `downloadMoment()`                                     | No parameters → `Promise<void>`                     | Encodes and requests download of the selected result.                                             |
+| `showInfo(title, content)`                             | Trusted title and HTML content                      | Inserts application-owned information and opens the info dialog. Never pass untrusted input.      |
+| `toggleFullscreen()`                                   | No parameters → `Promise<void>`                     | Toggles fullscreen on the viewfinder or reports browser limitations.                              |
 
 ### Editor function reference
 
-| Function                   | Responsibility                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------------- |
-| `createMomentSettings()`   | Copies booth defaults into independent settings for a newly created moment.                 |
-| `frameTextColor(hexColor)` | Selects light or dark footer/sticker text from the frame color's weighted brightness.       |
-| `refreshEditorPreview()`   | Redraws the selected moment after a design or photo edit.                                   |
-| `syncEditor()`             | Loads saved design values into editor controls, then refreshes photo tools and composition. |
-| `renderPhotoTools()`       | Creates small source-photo thumbnails and updates zoom, mirror, and reorder controls.       |
-| `movePhoto(direction)`     | Swaps adjacent source photos and their transform records together; updates selection.       |
-| `resetMomentEdits()`       | Restores original settings, photo order, and identity transforms for only this moment.      |
+| Function                                             | Responsibility                                                                                              |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `createMomentSettings()`                             | Copies booth defaults into independent settings for a newly created moment.                                 |
+| `drawFramePattern(context, settings, width, height)` | Draws the selected repeating pattern under photos, using saved color and scale, with isolated canvas state. |
+| `frameTextColor(hexColor)`                           | Selects light or dark footer text from the frame color's weighted brightness.                               |
+| `refreshEditorPreview()`                             | Redraws the selected moment after a design or photo edit.                                                   |
+| `syncEditor()`                                       | Loads saved design values into editor controls, then refreshes photo tools and composition.                 |
+| `renderPhotoTools()`                                 | Creates small source-photo thumbnails and updates zoom, mirror, and reorder controls.                       |
+| `movePhoto(direction)`                               | Swaps adjacent source photos and their transform records together; updates selection.                       |
+| `resetMomentEdits()`                                 | Restores original settings, photo order, and identity transforms for only this moment.                      |
 
 `editorFields` maps input IDs to saved property names and conversion types. Its input listeners convert range/select values to numbers where needed and checkbox values to booleans before rendering. Photo-transform buttons operate on `selectedPhotoIndex`. Editor form submission is prevented so Enter cannot reload the page.
 
@@ -230,10 +245,23 @@ Core functions are listed below, followed by the editor functions and inline han
 | `updatePhoneLayout()`                            | Opens phone style groups and updates gallery pagination after a breakpoint change.    |
 | `updateViewportSize()`                           | Tracks Safari's actual visible height and keyboard state.                             |
 
+### Helper internals and saved settings
+
+`PhotoEffects` and `PhotoStickers` are immediately invoked functions that expose small public APIs while keeping drawing helpers and caches private. In `effects.js`, `colorMatrix(name, amount)` builds a 3 × 4 affine RGB matrix for brightness, contrast, sepia, saturation, grayscale, or hue rotation. `clamp(value)` limits channel values to 0–255. `filteredPhoto()` parses the preset expression, applies each matrix in order to each pixel, preserves alpha, and caches the result by source canvas and expression. Unsupported operation names throw an error; adding a filter operation requires adding its matrix implementation too.
+
+`PhotoStickers.choices` is the shared catalog for both sticker pickers. `draw()` dispatches the chosen artwork using canvas paths, and `thumbnail()` renders that same artwork for selection buttons. Add new artwork and its catalog entry together so the booth, editor, and exports stay consistent.
+
+Each moment's `settings` stores `layout`, `filter`, `frameColor`, `pattern`, `patternColor`, `patternScale`, `sticker`, `stickerSize`, `stickerPosition`, `caption`, `captionFont`, `brightness`, `contrast`, `padding`, `gap`, `showDate`, and `format`. Each `photoEdits` entry stores `zoom`, `rotation`, `mirror`, `panX`, and `panY`. Reordering swaps photos and their edit records together. `selectedPhotoIndex` identifies the source being edited; `editorRenderFrame` coalesces preview updates; `shutterAudio` owns the reusable audio context. None of these values persist across a page reload.
+
+`captionFontsReady` is a promise, not a function. It starts loading bundled caption fonts during initialization and refreshes the preview after loading settles. The local Vladimir font lookup can fail normally; the font stack then uses bundled Allura. Other font-load failures are caught so the editor remains usable with browser fallback fonts.
+
 ### Inline event handlers
 
 | Event or control                     | Responsibility                                                                                           |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Style tabs / editor tabs             | Select the active control page and update pressed states; editor panes use `hidden`.                     |
+| Gallery previous/next                | Change `galleryPage` and redraw the visible pair of moments.                                             |
+| Viewport resize/scroll               | Update visible height, top offset, and keyboard state.                                                   |
 | Mobile navigation buttons            | Set the body panel attribute, update pressed state, and scroll to top.                                   |
 | Filter/frame/layout/sticker buttons  | Update shared settings, visible selection, and preview. Layout also updates capture text.                |
 | Brightness/contrast/caption input    | Call `updatePreview()` immediately.                                                                      |
@@ -278,10 +306,10 @@ pnpm exec playwright install chromium webkit
 pnpm test
 ```
 
-Tests cover real pixel changes without native canvas-filter support, PNG/JPEG output, drawn stickers, crop/reorder/reset, independent edits, cancelled imports, camera recovery, and every phone tool page at 320×568 through portrait and landscape sizes. WebKit is the Safari engine; physical camera permissions, iOS download UI, and audio playback still need device testing. Set `CHROME_EXECUTABLE` to use an installed Chrome or `TEST_BROWSERS=webkit` to run only WebKit. For syntax and formatting:
+Tests cover distinct pattern rendering without changing photo pixels, successful bundled-font loading and distinct caption output, real pixel changes without native canvas-filter support, PNG/JPEG output, drawn stickers, crop/reorder/reset, independent edits, cancelled imports, camera recovery, and every phone tool page at 320×568 through portrait and landscape sizes. WebKit is the Safari engine; physical camera permissions, iOS download UI, and audio playback still need device testing. Set `CHROME_EXECUTABLE` to use an installed Chrome or `TEST_BROWSERS=webkit` to run only WebKit. For syntax and formatting:
 
 ```bash
-node --check dist/app.js
+for file in dist/*.js; do node --check "$file"; done
 pnpm format:check
 ```
 
@@ -299,9 +327,3 @@ Before publishing, serve the site locally and check:
 8. Desktop and phone widths, bottom navigation, keyboard capture, dialog focus/Escape/backdrop closing, and reduced motion.
 
 Real camera permission, hardware switching, sound, and fullscreen need checks in the target browsers and devices. The application does not include persistent recovery, cloud sync, or sharing services.
-
-### Patterned frames and script captions
-
-The editor’s Patterns tab offers plain, polka-dot, diagonal-stripe, gingham-check, and heart backgrounds with adjustable ink color and scale. `drawFramePattern()` draws beneath the photographs, and leaves the caption footer clear. Patterns are stored per moment and included in both PNG and JPEG exports.
-
-Allura, Dancing Script, and Pacifico are bundled in `dist/fonts/` with their SIL Open Font License files from the [Google Fonts repository](https://github.com/google/fonts). No external font service is contacted. Vladimir Script uses an installed local copy, with bundled Allura as the fallback on iPhone and other devices without it; the proprietary font is not redistributed ([Microsoft font information](https://learn.microsoft.com/en-us/typography/font-list/vladimir-script)). `captionFontsReady` loads these assets, refreshes the preview, and is awaited by `downloadMoment()` to keep exported text consistent.
