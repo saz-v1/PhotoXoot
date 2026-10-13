@@ -707,3 +707,51 @@ main {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* Keep bottom actions in their own rows, above the device's safe area. */
+.panel-nav {
+  min-width: 0;
+  z-index: 10;
+}
+.panel-nav button {
+  min-width: 0;
+  width: 100%;
+}
+.editor-footer {
+  display: grid;
+  grid-template-columns: minmax(65px, 0.6fr) minmax(65px, 0.7fr) minmax(
+      100px,
+      2fr
+    );
+  align-items: stretch;
+}
+.editor-footer > * {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.editor-footer button {
+  white-space: nowrap;
+}
+.editor-pane[data-editor-section="text"] {
+  gap: clamp(4px, 1dvh, 12px);
+}
+#captionSizeValue {
+  color: var(--muted);
+}
+@media (max-height: 500px) {
+  .editor-pane[data-editor-section="text"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+  }
+}
+
+.keyboard-open .editor-pane[data-editor-section="text"] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+.keyboard-open #resultDialog > p {
+  display: none;
+}

@@ -17,7 +17,7 @@ document.querySelectorAll("button[data-panel]").forEach((button) => {
   button.onclick = () => {
     document.body.dataset.panel = button.dataset.panel;
     document
-      .querySelectorAll("[data-panel]")
+      .querySelectorAll("button[data-panel]")
       .forEach((other) => other.setAttribute("aria-pressed", other === button));
     window.scrollTo({ top: 0, behavior: "instant" });
   };
@@ -606,6 +606,7 @@ function createMomentSettings() {
     gap: 22,
     showDate: false,
     captionFont: "Georgia",
+    captionSize: 100,
     format: getElement("format").value,
   };
 }
@@ -695,7 +696,17 @@ function renderMoment(moment, canvas) {
   const photoHeight = photoWidth * 0.75;
   const caption = settings.caption.trim();
   // Omit empty footer space when neither caption nor date has been requested.
-  const footer = caption || settings.showDate ? 100 : 0;
+  const requestedFontSize = Math.round(
+    (width / 26) * ((settings.captionSize ?? 100) / 100),
+  );
+  const captionBaseline = Math.max(
+    settings.showDate ? 45 : 60,
+    requestedFontSize + 15,
+  );
+  const footer =
+    caption || settings.showDate
+      ? Math.max(100, captionBaseline + (settings.showDate ? 45 : 25))
+      : 0;
   const photoBottom = padding + rows * photoHeight + gap * (rows - 1);
   canvas.width = width;
   canvas.height = photoBottom + padding + footer;
@@ -737,7 +748,7 @@ function renderMoment(moment, canvas) {
   context.fillStyle = frameTextColor(settings.frameColor);
   context.textAlign = "center";
   if (caption) {
-    let fontSize = Math.round(width / 26);
+    let fontSize = requestedFontSize;
     const setCaptionFont = () => {
       context.font = `${settings.captionFont === "Georgia" ? "italic " : ""}${fontSize}px ${settings.captionFont}`;
     };
@@ -749,15 +760,15 @@ function renderMoment(moment, canvas) {
       fontSize--;
       setCaptionFont();
     }
-    context.fillText(
-      caption,
-      width / 2,
-      photoBottom + (settings.showDate ? 45 : 60),
-    );
+    context.fillText(caption, width / 2, photoBottom + captionBaseline);
   }
   if (settings.showDate) {
     context.font = `${Math.round(width / 65)}px Arial`;
-    context.fillText(moment.date, width / 2, photoBottom + (caption ? 77 : 60));
+    context.fillText(
+      moment.date,
+      width / 2,
+      photoBottom + (caption ? captionBaseline + 32 : 60),
+    );
   }
   if (settings.sticker) {
     const size = (width / 8) * settings.stickerSize;
@@ -784,6 +795,7 @@ const editorFields = {
   editPatternScale: ["patternScale", "number"],
   editCaption: ["caption", "string"],
   editCaptionFont: ["captionFont", "string"],
+  editCaptionSize: ["captionSize", "number"],
   editSticker: ["sticker", "string"],
   editStickerSize: ["stickerSize", "number"],
   editStickerPosition: ["stickerPosition", "string"],
@@ -798,6 +810,9 @@ const editorFields = {
 /** Render edits immediately; thumbnail caching happens when the editor closes. */
 let editorRenderFrame = null;
 function refreshEditorPreview() {
+  if (selectedMoment)
+    getElement("captionSizeValue").value =
+      `${selectedMoment.settings.captionSize ?? 100}%`;
   if (selectedMoment)
     document
       .querySelectorAll("[data-editor-sticker]")

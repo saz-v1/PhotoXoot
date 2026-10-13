@@ -98,7 +98,12 @@ async function checkVisibleBounds(page, selector) {
         getComputedStyle(element).visibility === "hidden"
       )
         return [];
-      const height = visualViewport?.height || innerHeight;
+      const height = Math.min(
+        visualViewport?.height || innerHeight,
+        parseFloat(
+          document.documentElement.style.getPropertyValue("--app-height"),
+        ) || innerHeight,
+      );
       return rect.left < -1 ||
         rect.top < -1 ||
         rect.right > innerWidth + 1 ||
@@ -196,6 +201,42 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
               );
             }
             assert.equal(captions.size, 4);
+            await page.close();
+          },
+        );
+        await t.test(
+          "caption size changes output and survives reopening",
+          async () => {
+            const page = await browser.newPage();
+            await page.goto(baseURL);
+            await upload(page);
+            await tab(page, "text");
+            await page.locator("#editCaption").fill("Hello!");
+            await page.locator("#editCaptionSize").fill("50");
+            await settle(page);
+            const small = await page
+              .locator("#resultCanvas")
+              .evaluate((c) => c.toDataURL());
+            await page.locator("#editCaptionSize").fill("200");
+            await settle(page);
+            assert.notEqual(
+              await page
+                .locator("#resultCanvas")
+                .evaluate((c) => c.toDataURL()),
+              small,
+            );
+            assert.equal(
+              await page.locator("#captionSizeValue").textContent(),
+              "200%",
+            );
+            await page.locator("#doneEditingBtn").click();
+            await page.locator('button[data-panel="moments"]').click();
+            await page.locator(".moment-actions button").first().click();
+            await tab(page, "text");
+            assert.equal(
+              await page.locator("#editCaptionSize").inputValue(),
+              "200",
+            );
             await page.close();
           },
         );
@@ -331,6 +372,7 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
               "",
             );
             await page.locator("#doneEditingBtn").click();
+            await page.locator('button[data-panel="moments"]').click();
             await page.locator(".moment-actions button").first().click();
             assert.equal(
               await page.evaluate(() => selectedMoment.settings.caption),
@@ -345,6 +387,7 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
               raw,
             );
             await page.locator("#doneEditingBtn").click();
+            await page.locator('button[data-panel="booth"]').click();
             assert(
               await page.locator("#useCameraBtn").isVisible(),
               "Uploaded photos do not hide camera recovery",
@@ -452,12 +495,13 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
             }
             await page.setViewportSize({ width: 390, height: 844 });
             await page.locator('button[data-panel="moments"]').click();
-            assert.equal(await page.locator(".moment").count(), 2);
+            assert.equal(await page.locator(".moment").count(), 1);
             await page.locator("#previousGalleryPage").click();
             assert.equal(
               await page.locator("#galleryPageLabel").textContent(),
-              "1 / 2",
+              "3 / 4",
             );
+            await page.locator('button[data-panel="moments"]').click();
             await page.locator(".moment-actions button").first().click();
             await tab(page, "text");
             // VisualViewport shrink from an iPhone keyboard follows this same CSS path.

@@ -40,23 +40,23 @@ PhotoXoot/
 ├── README.md          # Setup, architecture, behavior, and maintenance guide
 └── dist/
     ├── index.html     # Semantic page structure and stable element IDs
-    ├── style.css      # Theme tokens, components, desktop and base responsive rules
-    ├── mobile.css     # Touch targets, phone panels, navigation, and safe-area rules
+    ├── style.css      # Theme tokens and shared component styling
+    ├── layout.css     # Shared viewport layout, panels, container sizing, and safe areas
     ├── fonts/         # Bundled script fonts and their license notices
     ├── effects.js     # Portable RGB image effects, including Safari
     ├── stickers.js    # Resolution-independent sticker artwork
     └── app.js         # State, UI events, camera lifecycle, rendering, and exports
 ```
 
-`index.html` loads `style.css` and then `mobile.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. Three deferred classic scripts load in order: effects, stickers, then application behavior. There is no module loader or bundler. The interface uses system fonts; photo captions also support bundled script fonts. It uses text-labeled primary actions, restrained borders, and native disclosure controls for optional tools.
+`index.html` loads `style.css` and then `layout.css`. Later responsive rules override the base styles according to the normal CSS cascade. The script uses `defer`, so its DOM lookups run after HTML parsing. Three deferred classic scripts load in order: effects, stickers, then application behavior. There is no module loader or bundler. The interface uses system fonts; photo captions also support bundled script fonts. It uses text-labeled primary actions, restrained borders, and native disclosure controls for optional tools.
 
 ### HTML responsibilities
 
 - **Header and introduction:** compact PhotoXoot branding, help/privacy actions, and a short capture/edit/save introduction.
 - **`boothPanel`:** neutral welcome screen, camera video, imported-image preview, countdown, flash, timer, capture, and camera controls. JavaScript adds the Stop camera button.
-- **`customizePanel`:** layout/filter/frame choices, caption/stickers, and image adjustments. On phones these are five separate style pages.
-- **`momentsPanel`:** session count, gallery, clear-session action, and two-moment pagination on phones.
-- **Mobile navigation:** Camera, Style, and Photos buttons use `data-panel` values to select `booth`, `customize`, or `moments`; `aria-controls` identifies each panel.
+- **`customizePanel`:** layout/filter/frame choices, caption/stickers, and image adjustments. These are five separate style pages at every screen size.
+- **`momentsPanel`:** session count, gallery, clear-session action, and two-moment pagination at every screen size.
+- **Panel navigation:** Camera, Style, and Photos buttons use `data-panel` values to select `booth`, `customize`, or `moments`; `aria-controls` identifies each panel.
 - **`infoDialog`:** help, privacy information, and clear-session confirmation.
 - **`resultDialog`:** live composition, design and individual-photo controls, Done editing, and download actions.
 - **`toast`:** temporary status feedback with `role="status"` and `aria-live="polite"`.
@@ -67,19 +67,11 @@ Element IDs are the contract between HTML and `getElement()` in JavaScript. Rena
 
 `style.css` begins with color tokens in `:root`, then document defaults and component rules. Sections cover the workspace, neutral viewfinder, camera controls, customization, gallery, footer, feedback, and dialogs. Neutral surface/text tokens and one dark action color keep the interface visually quiet. Base breakpoints adjust larger and smaller layouts, and `prefers-reduced-motion` disables animations.
 
-`mobile.css` layers touch-friendly controls over those rules:
+`layout.css` defines one viewport-filling layout for all devices. The body is a grid with a header, flexible content row, and bottom navigation. `main` fills its row with zero automatic margins so the flexible camera cannot collapse. Camera, Style, and Photos are pages selected through `body.dataset.panel`; inactive panels are hidden but retain their state. The gallery always shows two moments per page.
 
-| Condition                                               | Behavior                                                                                                                      |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Width ≤ 900 px                                          | Single-column workspace and compact controls.                                                                                 |
-| Width ≤ 750 px, or height ≤ 500 px with width ≤ 1000 px | Fixed-screen phone mode: one panel at a time, bottom navigation, paginated gallery, fullscreen editor, and safe-area spacing. |
-| Width ≤ 750 px and height ≤ 650 px                      | More compact spacing and controls for short portrait screens.                                                                 |
-| Height ≤ 500 px and width ≤ 1000 px                     | Landscape editor places preview beside tools; camera controls use a compact row.                                              |
+The editor also fills the visible viewport. Its preview grows into the space left by tool controls and a dedicated footer row for format, Done, and Download. A container query places tools beside the preview when the editor has at least 640 px of available width. Height queries compact spacing below 650 px and controls below 500 px; these depend only on space, not device identity. All devices retain the same controls and navigation. Safe-area insets reserve room around device cutouts and the home indicator.
 
-Phone `main` explicitly resets desktop auto margins and fills its grid row so the flexible camera preview cannot collapse to zero height. Regression tests assert that the preview has usable height, not just that controls stay onscreen.
-
-The `phoneLayout` media query in JavaScript must match the phone-mode CSS condition. `updateViewportSize()` sets `--app-height` and `--viewport-top` from `visualViewport`; a height reduction over 120 px enables `keyboard-open`. This is a keyboard heuristic, not a keyboard API.
-On phones, JavaScript sets `body.dataset.mobilePanel`; CSS hides the other panels. Their DOM nodes and settings remain in place. On larger screens, the panels appear together. Dynamic viewport units and `env(safe-area-inset-*)` keep controls clear of browser chrome and device cutouts. The gallery uses `:has()`, so older browsers may differ in presentation.
+`updateViewportSize()` sets `--app-height` and `--viewport-top` from `visualViewport`; a height reduction over 120 px enables `keyboard-open`. This is a keyboard heuristic, not a keyboard API. While typing in a reduced viewport, the editor hides its preview to leave room for text controls and bottom actions. The gallery uses `:has()` and editor layout uses container queries, so use a current browser.
 
 ## Application state and ownership
 
@@ -117,7 +109,7 @@ Every capture or import opens a live editor. Design, Patterns, Stickers, Photo, 
 - Layout: Strip, Grid, or Solo, without retaking the photos.
 - Six filters, brightness, and contrast.
 - Any frame color through a color picker, frame width from 0–80 px, and photo spacing from 0–40 px.
-- Optional caption, seven font choices (including Vladimir Script with an Allura fallback), and an optional date.
+- Optional caption with a 50%–200% text-size slider, seven font choices (including Vladimir Script with an Allura fallback), and an optional date.
 - Plain, polka-dot, diagonal-stripe, gingham-check, or heart frames, with custom pattern color and a 16–80 px pattern scale.
 - Seven drawn sticker designs (heart, daisy, bow, cherries, sparkles, smiley, and star), with adjustable size and four corner positions.
 - Individual-photo zoom from 1×–2.5×, horizontal/vertical crop position, 90° rotation, mirroring, and earlier/later ordering.
@@ -127,7 +119,7 @@ Select a source-photo thumbnail before changing its zoom, rotation, mirror, or o
 
 **Exports have no watermark or automatic text.** An empty caption stays empty, and the date is off by default. When both are empty, the renderer removes the footer allocation. Branding appears only in the application interface, never in the image.
 
-On desktop, the editor pairs a preview with the active tool page. Phone layouts fill the available visual viewport with a flexible preview, compact tools, and fixed download controls. Style settings use five sub-pages; the photo gallery shows two sets per page. This avoids document and editor scrolling while keeping every tool and saved set reachable. Landscape phones use side-by-side preview/tools. `visualViewport` resize events adapt the height when Safari's toolbar or keyboard changes; the preview hides while typing in a reduced viewport.
+The same screen-fitting layout serves every device. Camera/Style/Photos navigation stays in its own bottom row, and the editor's export actions stay in a separate footer. Available width determines whether preview and controls sit beside or above one another. Available height controls compact spacing. See CSS responsibilities for the sizing rules.
 
 ### Patterned frames and script captions
 
@@ -141,7 +133,7 @@ Allura, Dancing Script, and Pacifico are bundled in `dist/fonts/` with their SIL
 
 When the deferred script runs, it defines option catalogs and session state, creates the filter/frame buttons and Stop camera control, and binds event handlers. There is no framework render loop: handlers update the affected DOM elements explicitly.
 
-Layout, filter, frame, and sticker selection keep the visual `active` class and `aria-pressed` attribute in sync. Brightness, contrast, and caption changes call `updatePreview()`. Mobile navigation updates the selected panel and scrolls to the top.
+Layout, filter, frame, and sticker selection keep the visual `active` class and `aria-pressed` attribute in sync. Brightness, contrast, and caption changes call `updatePreview()`. Panel navigation updates the selected panel and scrolls to the top.
 
 ### 2. Camera startup and shutdown
 
@@ -177,11 +169,11 @@ Import stops the camera before decoding and retains all successful images. The f
 | Grid          | 1000 px      | 2 × 2          | 4           |
 | Solo          | 850 px       | 1 × 1          | 1           |
 
-Default padding is 36 px and gaps are 22 px; both are editable. Footer allocation is 100 px only when a caption or date is requested, otherwise zero. Each photo slot uses a 4:3 ratio. Canvas height follows the computed slot heights, rows, gaps, padding, and footer; assigning it to a canvas converts fractional values to integer dimensions.
+Default padding is 36 px and gaps are 22 px; both are editable. Footer allocation is at least 100 px when a caption or date is requested, expanding for larger caption sizes; otherwise it is zero. Each photo slot uses a 4:3 ratio. Canvas height follows the computed slot heights, rows, gaps, padding, and footer; assigning it to a canvas converts fractional values to integer dimensions.
 
 The renderer fills the frame and draws its selected pattern beneath the photos, leaving any caption footer clear. It then clips each photo slot and draws a centered image using `drawCover()`. `context.save()`/`restore()` isolate clipping and transforms. Filtering processes only source-photo canvases, keeping frame and footer text unfiltered. The image index wraps through the raw photo array when there are fewer photos than slots. Solo renders the first photo.
 
-The renderer applies each source photo's zoom, crop position, rotation, and mirror inside its clipped slot. Quarter turns swap crop dimensions so the rotated image still covers its slot. Transforms and filters are applied only during composition; raw pixels stay unchanged. The caption uses the selected font and shrinks to fit down to 12 px. The date is drawn only when enabled. There is no brand text or fallback caption. Footer text contrast follows the custom frame color. Stickers are paths and ellipses drawn by `PhotoStickers.draw()`, rather than font glyphs, so their shape is consistent across browsers and export resolutions.
+The renderer applies each source photo's zoom, crop position, rotation, and mirror inside its clipped slot. Quarter turns swap crop dimensions so the rotated image still covers its slot. Transforms and filters are applied only during composition; raw pixels stay unchanged. The caption starts at output width / 26, multiplied by the saved `captionSize` percentage. It uses the selected font and shrinks to fit down to 12 px for long captions. Footer height and text baselines expand to prevent larger text from being clipped; the date stays beneath the caption. The date is drawn only when enabled. There is no brand text or fallback caption. Footer text contrast follows the custom frame color. Stickers are paths and ellipses drawn by `PhotoStickers.draw()`, rather than font glyphs, so their shape is consistent across browsers and export resolutions.
 
 `filterValue(settings)` describes the preset, brightness, and contrast. The live video uses CSS filters. Saved photos, previews, thumbnails, and downloads use `PhotoEffects.filteredPhoto()`: it reads pixels with `getImageData()`, applies the preset RGB matrices while preserving alpha, and writes the processed pixels to a separate canvas. A WeakMap caches only the latest processed version of each source photo. Raw photos remain untouched. This avoids the [limited browser support of canvas filters](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter), including Safari versions where the old editor silently left photos unchanged. Slider redraws are coalesced into one animation frame; closing the editor renders the latest settings synchronously. Downloads first await local font loading, then render the latest settings before encoding.
 
@@ -233,7 +225,7 @@ The tables cover all named application functions and the public helper APIs. Pri
 
 `editorFields` maps input IDs to saved property names and conversion types. Its input listeners convert range/select values to numbers where needed and checkbox values to booleans before rendering. Photo-transform buttons operate on `selectedPhotoIndex`. Editor form submission is prevented so Enter cannot reload the page.
 
-### Reliability and phone helpers
+### Reliability and layout helpers
 
 | Function                                         | Responsibility                                                                        |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------- |
@@ -244,7 +236,7 @@ The tables cover all named application functions and the public helper APIs. Pri
 | `PhotoStickers.draw(context, id, x, y, size)`    | Draws scalable sticker artwork at a selected position.                                |
 | `PhotoStickers.thumbnail(id)`                    | Generates a small transparent sticker preview.                                        |
 | `selectEditorTab(tab)`                           | Updates active tool buttons and hides inactive tool pages.                            |
-| `updatePhoneLayout()`                            | Opens phone style groups and updates gallery pagination after a breakpoint change.    |
+| `initializePanels()`                             | Opens style groups for the shared panel interface and renders the initial gallery.    |
 | `updateViewportSize()`                           | Tracks Safari's actual visible height and keyboard state.                             |
 
 ### Helper internals and saved settings
@@ -253,7 +245,7 @@ The tables cover all named application functions and the public helper APIs. Pri
 
 `PhotoStickers.choices` is the shared catalog for both sticker pickers. `draw()` dispatches the chosen artwork using canvas paths, and `thumbnail()` renders that same artwork for selection buttons. Add new artwork and its catalog entry together so the booth, editor, and exports stay consistent.
 
-Each moment's `settings` stores `layout`, `filter`, `frameColor`, `pattern`, `patternColor`, `patternScale`, `sticker`, `stickerSize`, `stickerPosition`, `caption`, `captionFont`, `brightness`, `contrast`, `padding`, `gap`, `showDate`, and `format`. Each `photoEdits` entry stores `zoom`, `rotation`, `mirror`, `panX`, and `panY`. Reordering swaps photos and their edit records together. `selectedPhotoIndex` identifies the source being edited; `editorRenderFrame` coalesces preview updates; `shutterAudio` owns the reusable audio context. None of these values persist across a page reload.
+Each moment's `settings` stores `layout`, `filter`, `frameColor`, `pattern`, `patternColor`, `patternScale`, `sticker`, `stickerSize`, `stickerPosition`, `caption`, `captionFont`, `captionSize`, `brightness`, `contrast`, `padding`, `gap`, `showDate`, and `format`. Each `photoEdits` entry stores `zoom`, `rotation`, `mirror`, `panX`, and `panY`. Reordering swaps photos and their edit records together. `selectedPhotoIndex` identifies the source being edited; `editorRenderFrame` coalesces preview updates; `shutterAudio` owns the reusable audio context. None of these values persist across a page reload.
 
 `captionFontsReady` is a promise, not a function. It starts loading bundled caption fonts during initialization and refreshes the preview after loading settles. The local Vladimir font lookup can fail normally; the font stack then uses bundled Allura. Other font-load failures are caught so the editor remains usable with browser fallback fonts.
 
@@ -264,7 +256,7 @@ Each moment's `settings` stores `layout`, `filter`, `frameColor`, `pattern`, `pa
 | Style tabs / editor tabs             | Select the active control page and update pressed states; editor panes use `hidden`.                     |
 | Gallery previous/next                | Change `galleryPage` and redraw the visible pair of moments.                                             |
 | Viewport resize/scroll               | Update visible height, top offset, and keyboard state.                                                   |
-| Mobile navigation buttons            | Set the body panel attribute, update pressed state, and scroll to top.                                   |
+| Panel navigation buttons             | Set the body panel attribute, update pressed state, and scroll to top.                                   |
 | Filter/frame/layout/sticker buttons  | Update shared settings, visible selection, and preview. Layout also updates capture text.                |
 | Brightness/contrast/caption input    | Call `updatePreview()` immediately.                                                                      |
 | Mirror button                        | Toggle future capture mirroring and current video appearance.                                            |
@@ -308,7 +300,7 @@ pnpm exec playwright install chromium webkit
 pnpm test
 ```
 
-Tests cover distinct pattern rendering without changing photo pixels, successful bundled-font loading and distinct caption output, real pixel changes without native canvas-filter support, PNG/JPEG output, drawn stickers, crop/reorder/reset, independent edits, cancelled imports, camera recovery, and every phone tool page at 320×568 through portrait and landscape sizes. WebKit is the Safari engine; physical camera permissions, iOS download UI, and audio playback still need device testing. Set `CHROME_EXECUTABLE` to use an installed Chrome or `TEST_BROWSERS=webkit` to run only WebKit. For syntax and formatting:
+Tests cover distinct pattern rendering without changing photo pixels, successful bundled-font loading and distinct caption output, real pixel changes without native canvas-filter support, PNG/JPEG output, drawn stickers, crop/reorder/reset, independent edits, cancelled imports, camera recovery, and every tool page across 320×568 through 1440×900 windows, including short landscape windows. WebKit is the Safari engine; physical camera permissions, iOS download UI, and audio playback still need device testing. Set `CHROME_EXECUTABLE` to use an installed Chrome or `TEST_BROWSERS=webkit` to run only WebKit. For syntax and formatting:
 
 ```bash
 for file in dist/*.js; do node --check "$file"; done
