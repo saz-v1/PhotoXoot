@@ -670,7 +670,7 @@ footer {
   color: var(--muted);
   font-size: 11px;
 }
-.mobile-nav {
+.panel-nav {
   display: none;
 }
 /* Feedback and native dialogs */

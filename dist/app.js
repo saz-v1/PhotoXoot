@@ -13,9 +13,9 @@
  */
 /** Resolve a required HTML element by its stable ID. */
 const getElement = (id) => document.getElementById(id);
-document.querySelectorAll("[data-panel]").forEach((button) => {
+document.querySelectorAll("button[data-panel]").forEach((button) => {
   button.onclick = () => {
-    document.body.dataset.mobilePanel = button.dataset.panel;
+    document.body.dataset.panel = button.dataset.panel;
     document
       .querySelectorAll("[data-panel]")
       .forEach((other) => other.setAttribute("aria-pressed", other === button));
@@ -70,9 +70,7 @@ let selectedMoment = null;
 let toastTimer;
 let selectedPhotoIndex = 0;
 let galleryPage = 0;
-const phoneLayout = window.matchMedia(
-  "(max-width: 750px), (max-height: 500px) and (max-width: 1000px)",
-);
+
 /** Show a temporary status message, replacing any previous toast. */
 function toast(message) {
   getElement("toast").textContent = message;
@@ -1001,14 +999,13 @@ function renderGallery() {
     getElement("gallery").append(element);
     return;
   }
-  const pageSize = phoneLayout.matches ? 2 : Math.max(1, moments.length);
+  const pageSize = 2;
   const pages = Math.max(1, Math.ceil(moments.length / pageSize));
   galleryPage = Math.min(galleryPage, pages - 1);
   getElement("galleryPageLabel").textContent = `${galleryPage + 1} / ${pages}`;
   getElement("previousGalleryPage").disabled = galleryPage === 0;
   getElement("nextGalleryPage").disabled = galleryPage >= pages - 1;
-  getElement("galleryPager").hidden =
-    !phoneLayout.matches || moments.length <= pageSize;
+  getElement("galleryPager").hidden = moments.length <= pageSize;
   moments
     .slice(galleryPage * pageSize, (galleryPage + 1) * pageSize)
     .forEach((moment, offset) => {
@@ -1194,14 +1191,13 @@ document.querySelectorAll("button[data-style-tab]").forEach((button) => {
       .forEach((other) => other.setAttribute("aria-pressed", other === button));
   };
 });
-function updatePhoneLayout() {
-  if (phoneLayout.matches)
-    document.querySelectorAll("#customizePanel details").forEach((details) => {
-      details.open = true;
-    });
+function initializePanels() {
+  document.querySelectorAll("#customizePanel details").forEach((details) => {
+    details.open = true;
+  });
   renderGallery();
 }
-phoneLayout.addEventListener("change", updatePhoneLayout);
+
 getElement("previousGalleryPage").onclick = () => {
   galleryPage = Math.max(0, galleryPage - 1);
   renderGallery();
@@ -1248,4 +1244,4 @@ window.visualViewport?.addEventListener("resize", updateViewportSize);
 window.visualViewport?.addEventListener("scroll", updateViewportSize);
 window.addEventListener("resize", updateViewportSize);
 updateViewportSize();
-updatePhoneLayout();
+initializePanels();

@@ -359,7 +359,7 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
           },
         );
         await t.test(
-          "phone pages, every editor tab, gallery paging, and short keyboard viewport fit",
+          "viewport layout, every editor tab, gallery paging, and short keyboard viewport fit",
           async () => {
             const page = await browser.newPage();
             await page.goto(baseURL);
@@ -368,11 +368,14 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
               { width: 375, height: 667 },
               { width: 390, height: 844 },
               { width: 844, height: 390 },
+              { width: 1024, height: 768 },
+              { width: 1440, height: 900 },
+              { width: 1200, height: 450 },
             ]) {
               await page.setViewportSize(viewport);
               await settle(page);
               for (const section of ["booth", "customize", "moments"]) {
-                await page.locator(`[data-panel="${section}"]`).click();
+                await page.locator(`button[data-panel="${section}"]`).click();
                 await settle(page);
                 assert(
                   await page.evaluate(
@@ -400,10 +403,10 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
                   }
                 await checkVisibleBounds(
                   page,
-                  "#boothPanel button, #boothPanel select, .mobile-nav button",
+                  "#boothPanel button, #boothPanel select, .panel-nav button",
                 );
               }
-              await page.locator('[data-panel="booth"]').click();
+              await page.locator('button[data-panel="booth"]').click();
               const viewfinder = await page
                 .locator("#viewfinder")
                 .boundingBox();
@@ -448,7 +451,7 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
               await page.locator("#doneEditingBtn").click();
             }
             await page.setViewportSize({ width: 390, height: 844 });
-            await page.locator('[data-panel="moments"]').click();
+            await page.locator('button[data-panel="moments"]').click();
             assert.equal(await page.locator(".moment").count(), 2);
             await page.locator("#previousGalleryPage").click();
             assert.equal(
@@ -502,6 +505,7 @@ for (const engine of (process.env.TEST_BROWSERS || "chromium,webkit").split(
             await page.waitForFunction(
               () => typeof window.releaseDecode === "function",
             );
+            await page.locator('button[data-panel="moments"]').click();
             await page.locator("#clearBtn").click();
             await page.locator("#confirmClear").click();
             await page.evaluate(() => window.releaseDecode());

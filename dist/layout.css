@@ -1,0 +1,709 @@
+/* One viewport-filling layout for every screen. Tools and gallery use pages. */
+
+.workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.key-hint {
+  display: none;
+}
+
+html {
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  height: var(--app-height, 100dvh);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 48px minmax(0, 1fr) calc(
+      56px + env(safe-area-inset-bottom)
+    );
+  padding: env(safe-area-inset-top) 0 0;
+}
+.header {
+  height: auto;
+  width: 100%;
+  padding: 0 max(14px, env(safe-area-inset-left));
+}
+.brand {
+  font-size: 21px;
+}
+.header nav {
+  gap: 0;
+}
+.header nav button {
+  padding: 6px 8px;
+  font-size: 12px;
+  min-height: 40px;
+}
+main {
+  /* Stretch the content row so the flexible camera never collapses. */
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 max(10px, env(safe-area-inset-left)) 6px
+    max(10px, env(safe-area-inset-right));
+}
+.intro,
+footer {
+  display: none;
+}
+.workspace {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+.booth-card,
+.customize-card,
+.moments-card {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+body[data-panel="booth"] .customize-card,
+body[data-panel="booth"] .moments-card,
+body[data-panel="customize"] .booth-card,
+body[data-panel="customize"] .moments-card,
+body[data-panel="moments"] .workspace {
+  display: none;
+}
+.booth-card {
+  padding: 0 10px 8px;
+}
+.card-heading {
+  flex: 0 0 42px;
+  min-height: 0;
+  gap: 8px;
+}
+h2 {
+  font-size: 14px;
+}
+.local-pill {
+  font-size: 11px;
+}
+.viewfinder {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+.view-top {
+  top: 6px;
+  left: 6px;
+  right: 6px;
+}
+.welcome {
+  padding: 34px 10px 10px;
+}
+.welcome h3 {
+  font-size: 18px;
+}
+.welcome p {
+  font-size: 12px;
+  max-width: 230px;
+  margin: 6px 0 12px;
+}
+.camera-circle {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 10px;
+}
+.permission-note {
+  font-size: 10px;
+  margin-top: 8px;
+}
+.camera-controls {
+  gap: 5px;
+  margin: 8px 0;
+  flex-shrink: 0;
+}
+.control {
+  min-height: 38px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.control select {
+  font-size: 12px;
+  min-height: 24px;
+}
+.sound-button {
+  margin-left: 0;
+}
+.capture-row {
+  flex-shrink: 0;
+  gap: 7px;
+}
+.capture,
+.upload-button {
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.primary {
+  min-height: 40px;
+  padding: 9px 15px;
+}
+.booth-note {
+  font-size: 11px;
+  margin-top: 7px;
+  flex-shrink: 0;
+}
+.customize-card > .card-heading {
+  padding: 0 12px;
+}
+.style-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+.style-tabs button {
+  min-height: 40px;
+  font-size: 11px;
+  padding: 4px;
+}
+.custom-body {
+  padding: 16px 14px;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+[data-style-section] {
+  display: none;
+}
+body[data-style-tab="layout"] [data-style-section="layout"],
+body[data-style-tab="filter"] [data-style-section="filter"],
+body[data-style-tab="frame"] [data-style-section="frame"],
+body[data-style-tab="extras"] [data-style-section="extras"],
+body[data-style-tab="adjust"] [data-style-section="adjust"] {
+  display: block;
+}
+.options-group {
+  border: 0;
+}
+.options-group summary {
+  display: none;
+}
+.options-body {
+  padding: 0;
+}
+.settings-hint {
+  margin-top: auto;
+  padding-top: 10px;
+}
+.layout {
+  min-height: 96px;
+}
+.filter {
+  min-height: 48px;
+}
+.swatch {
+  height: 44px;
+  width: 36px;
+}
+.stickers {
+  gap: 6px;
+}
+.stickers button {
+  height: 48px;
+}
+.stickers img {
+  width: 38px;
+  height: 38px;
+}
+input:not([type="range"]):not([type="checkbox"]),
+select {
+  font-size: 16px;
+}
+.fine-tune input {
+  min-height: 40px;
+}
+.moments-card {
+  padding: 12px;
+  margin: 0;
+}
+.moments-header {
+  flex-shrink: 0;
+  align-items: center;
+}
+.moments-header p {
+  font-size: 11px;
+  max-width: 170px;
+}
+.moments-header .text-button {
+  padding: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.gallery {
+  flex: 1;
+  min-height: 0;
+}
+.gallery:has(.moment) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.moment {
+  min-height: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.moment img {
+  height: 0;
+  min-height: 0;
+  flex: 1;
+}
+.moment-actions {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.moment-actions button {
+  padding: 5px;
+  font-size: 11px;
+  min-height: 40px;
+}
+.moment-actions button:last-child {
+  min-width: 32px;
+}
+.empty-gallery {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px;
+}
+.panel-nav {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  padding: 6px max(10px, env(safe-area-inset-right))
+    calc(6px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  background: white;
+  border-top: 1px solid var(--line);
+}
+.panel-nav button {
+  min-height: 40px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.panel-nav button[aria-pressed="true"] {
+  background: #f6e0e9;
+  color: var(--ink);
+  font-weight: 600;
+}
+.toast {
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  font-size: 12px;
+}
+dialog {
+  position: fixed;
+  top: var(--viewport-top, 0px);
+  margin: auto;
+  max-height: calc(var(--app-height, 100dvh) - 16px);
+  width: calc(100% - 16px);
+  padding: 44px 18px 18px;
+  font-size: 12px;
+}
+#resultDialog {
+  inset: auto 0;
+  top: var(--viewport-top, 0px);
+  margin: 0 auto;
+  height: var(--app-height, 100dvh);
+  max-height: var(--app-height, 100dvh);
+  width: 100%;
+  max-width: none;
+  border-radius: 0;
+  padding: max(10px, env(safe-area-inset-top)) 12px
+    max(8px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+#resultDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+#resultDialog > h2 {
+  font-size: 19px;
+  margin: 0;
+  min-height: 28px;
+  flex-shrink: 0;
+}
+#resultDialog > p {
+  font-size: 10px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.dialog-close {
+  top: max(4px, env(safe-area-inset-top));
+  right: 7px;
+  width: 36px;
+  height: 36px;
+}
+.editor-tabs {
+  gap: 4px;
+  margin: 8px 0;
+  flex-shrink: 0;
+}
+.editor-tabs button {
+  min-height: 36px;
+}
+.result-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
+.result-preview {
+  position: static;
+  padding: 8px;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  max-height: none;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.result-preview canvas {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+}
+.editor-controls {
+  width: 100%;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.editor-grid {
+  gap: 7px 12px;
+}
+.editor-controls label {
+  font-size: 11px;
+  gap: 3px;
+}
+.editor-controls select,
+.editor-controls input:not([type="range"]):not([type="checkbox"]) {
+  min-height: 36px;
+  height: 36px;
+  padding: 5px 8px;
+  font-size: 16px;
+}
+.editor-controls input[type="range"] {
+  min-height: 30px;
+  height: 30px;
+  margin: 0;
+}
+.editor-photos {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.editor-photos img {
+  max-height: 44px;
+  object-fit: cover;
+}
+.editor-photos button {
+  font-size: 10px;
+  padding: 3px;
+}
+.photo-sliders {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.editor-photo-actions {
+  margin-top: 6px;
+  gap: 6px;
+}
+.editor-photo-actions button {
+  min-height: 34px;
+  padding: 6px;
+  font-size: 11px;
+}
+.editor-controls .editor-checkbox {
+  min-height: 32px;
+}
+.editor-sticker-choices {
+  margin: 8px 0;
+}
+.editor-pane[data-editor-section="text"] {
+  gap: 12px;
+}
+.editor-footer {
+  position: static;
+  flex-shrink: 0;
+  padding: 8px 0 0;
+  margin-top: 10px;
+  gap: 8px;
+}
+.editor-footer select {
+  min-width: 65px;
+  min-height: 40px;
+}
+.editor-footer .primary {
+  min-width: 0;
+  flex: 1;
+}
+.editor-done {
+  min-height: 40px;
+  padding: 7px 12px;
+}
+.keyboard-open .result-preview,
+.keyboard-open .settings-hint,
+.keyboard-open #customizePanel .stickers,
+.keyboard-open #customizePanel .section-label {
+  display: none;
+}
+.keyboard-open .result-editor {
+  justify-content: center;
+}
+.keyboard-open .custom-body {
+  padding-top: 6px;
+}
+
+@media (max-height: 650px) {
+  .camera-circle,
+  .permission-note {
+    display: none;
+  }
+  .welcome p {
+    margin-bottom: 8px;
+  }
+  .welcome h3 {
+    font-size: 16px;
+  }
+}
+@media (max-height: 500px) {
+  body {
+    grid-template-rows: 36px minmax(0, 1fr) 44px;
+  }
+  .header nav button {
+    min-height: 30px;
+  }
+  .panel-nav {
+    padding: 3px 10px;
+  }
+  .panel-nav button {
+    min-height: 34px;
+  }
+  .card-heading {
+    flex-basis: 30px;
+  }
+  .camera-circle,
+  .permission-note,
+  .welcome p,
+  .booth-note {
+    display: none;
+  }
+  .welcome h3 {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .welcome {
+    padding: 30px 10px 8px;
+  }
+  .camera-controls {
+    position: static;
+    display: flex;
+    flex-wrap: nowrap;
+    width: auto;
+    margin: 5px 0;
+  }
+  .control {
+    min-height: 32px;
+    padding: 4px 8px;
+  }
+  .booth-card {
+    padding-right: 10px;
+  }
+  .capture-row {
+    margin-top: 7px;
+  }
+  #resultDialog {
+    padding: 6px 10px;
+  }
+  #resultDialog > p {
+    display: none;
+  }
+  .editor-tabs {
+    margin: 3px 0 6px;
+  }
+  .editor-tabs button {
+    min-height: 30px;
+  }
+  .result-editor {
+    flex-direction: row;
+    gap: 14px;
+  }
+  .result-preview {
+    width: 32%;
+    height: 100%;
+    flex: 1;
+  }
+  .editor-controls {
+    width: 64%;
+    align-self: center;
+  }
+  .editor-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px 8px;
+  }
+  .editor-controls label {
+    font-size: 10px;
+  }
+  .editor-controls select,
+  .editor-controls input:not([type="range"]):not([type="checkbox"]) {
+    height: 30px;
+    min-height: 30px;
+    font-size: 14px;
+    padding: 3px;
+  }
+  .editor-photo-actions {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .editor-photos {
+    width: 65%;
+    margin-bottom: 2px;
+  }
+  .editor-photos img {
+    max-height: 30px;
+  }
+  .editor-photo-actions button {
+    min-height: 30px;
+  }
+  .editor-footer {
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+  .editor-footer .primary,
+  .editor-done,
+  .editor-footer select {
+    min-height: 34px;
+  }
+  .editor-sticker-choices {
+    grid-template-columns: repeat(8, 1fr);
+    margin: 4px 0;
+  }
+  .editor-sticker-choices button {
+    height: 36px;
+  }
+  .editor-sticker-choices img {
+    width: 28px;
+    height: 28px;
+  }
+  .custom-body {
+    padding: 5px 14px;
+  }
+  .style-tabs {
+    padding: 5px 8px;
+  }
+  .style-tabs button {
+    min-height: 30px;
+  }
+  .settings-hint {
+    display: none;
+  }
+  .layout {
+    min-height: 60px;
+  }
+  .layout-options,
+  .filters,
+  .swatches {
+    margin-bottom: 0;
+  }
+  .filters {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  [data-style-section="extras"] .options-body {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 4px 10px;
+    align-items: center;
+  }
+  .caption-field {
+    margin-bottom: 0;
+  }
+  .stickers {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  .stickers button {
+    height: 38px;
+  }
+  .stickers img {
+    width: 30px;
+    height: 30px;
+  }
+  .fine-tune .options-body {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .fine-tune label {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.editor-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+}
+.editor-tabs button {
+  padding-inline: 2px;
+  font-size: 12px;
+}
+
+/* Container width controls composition; there are no device categories. */
+.header,
+main {
+  max-width: none;
+}
+.header {
+  margin: 0;
+}
+.moments-card {
+  margin: 0;
+}
+#resultDialog {
+  container-type: inline-size;
+}
+.custom-body {
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+}
+@container (min-width: 640px) {
+  .result-editor {
+    flex-direction: row;
+    gap: clamp(12px, 2cqw, 32px);
+  }
+  .result-preview {
+    width: 0;
+    height: 100%;
+    flex: 1;
+  }
+  .editor-controls {
+    width: clamp(300px, 42cqw, 650px);
+    align-self: center;
+  }
+  .editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-height: 500px) {
+  .editor-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

@@ -18,12 +18,12 @@
     />
     <title>PhotoXoot — Your private photo booth</title>
     <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="mobile.css" />
+    <link rel="stylesheet" href="layout.css" />
     <script src="effects.js" defer></script>
     <script src="stickers.js" defer></script>
     <script src="app.js" defer></script>
   </head>
-  <body data-mobile-panel="booth" data-style-tab="layout">
+  <body data-panel="booth" data-style-tab="layout">
     <header class="header">
       <a class="brand" href="#"
         >PhotoXoot<span class="brand-mark" aria-hidden="true"></span
@@ -278,7 +278,7 @@
       <span>PhotoXoot</span><span>No uploads. No watermark.</span>
     </footer>
     <!-- Phone navigation switches visibility while retaining each panel's state. -->
-    <nav class="mobile-nav" aria-label="Photo booth sections">
+    <nav class="panel-nav" aria-label="Photo booth sections">
       <button data-panel="booth" aria-controls="boothPanel" aria-pressed="true">
         Camera</button
       ><button
